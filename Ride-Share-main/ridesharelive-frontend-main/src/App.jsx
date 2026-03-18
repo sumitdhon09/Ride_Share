@@ -13,6 +13,7 @@ import { apiRequest } from "./api";
 
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
+const PAGE_SWITCH_EASE = [0.22, 1, 0.36, 1];
 
 const INITIAL_SESSION = {
   token: "",
@@ -982,6 +983,13 @@ export default function App() {
       ? dictionary.auth.switchToSignupAction || dictionary.auth.signupTab
       : dictionary.auth.switchToLoginAction || dictionary.auth.loginTab;
   const translationLanguageOptions = useMemo(() => websiteLanguageOptions, [websiteLanguageOptions]);
+  const reduceMotion = useMemo(
+    () =>
+      typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        : false,
+    []
+  );
 
   const syncGoogleLanguageOptions = useCallback(() => {
     const combo = document.querySelector(".goog-te-combo");
@@ -1557,9 +1565,20 @@ export default function App() {
 
         <div ref={scrollContainerRef} data-scroll-container>
           <main className="mx-auto w-full max-w-7xl px-4 pb-16 pt-8 sm:px-6 lg:px-10" data-reveal="instant" data-scroll-section>
-            {currentPage === "home" && <HomeLanding onOpenAuth={openAuthModal} copy={dictionary.home} />}
-            {currentPage === "rider" && <RiderDashboard />}
-            {currentPage === "driver" && <DriverDashboard />}
+            <AnimatePresence mode="wait" initial={false}>
+              <MotionDiv
+                key={currentPage}
+                className="page-switch-stage"
+                initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: PAGE_SWITCH_EASE }}
+              >
+                {currentPage === "home" && <HomeLanding onOpenAuth={openAuthModal} copy={dictionary.home} />}
+                {currentPage === "rider" && <RiderDashboard />}
+                {currentPage === "driver" && <DriverDashboard />}
+              </MotionDiv>
+            </AnimatePresence>
           </main>
 
           <footer

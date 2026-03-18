@@ -16,7 +16,7 @@ describe("Signup", () => {
   it("requests OTP before submitting signup", async () => {
     const onSignup = vi.fn();
     apiRequest
-      .mockResolvedValueOnce({ message: "OTP sent.", devOtp: "123456" })
+      .mockResolvedValueOnce({ message: "OTP sent." })
       .mockResolvedValueOnce({ message: "Account created." });
 
     render(<Signup onSignup={onSignup} />);

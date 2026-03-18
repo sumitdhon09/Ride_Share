@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
+import { AnimatePresence, motion } from "motion/react";
 import Velocity from "velocity-animate";
 import { API_BASE_URL, apiRequest } from "../api";
 
@@ -8,6 +9,7 @@ const OPEN_EASING = [0.22, 1, 0.36, 1];
 const CLOSE_EASING = [0.4, 0, 1, 1];
 const WS_BASE = (import.meta.env.VITE_WS_BASE_URL || API_BASE_URL).trim().replace(/\/+$/, "");
 const WS_BROKER_URL = `${WS_BASE.replace(/^http/i, "ws")}/ws`;
+const MotionDiv = motion.div;
 
 function formatTime(value) {
   if (!value) {
@@ -67,11 +69,16 @@ export default function NotificationCenter({ token = "" }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState("");
   const [endpointPrefix, setEndpointPrefix] = useState("");
+  const [liveToast, setLiveToast] = useState(null);
+  const [pulseUnreadBadge, setPulseUnreadBadge] = useState(false);
   const containerRef = useRef(null);
   const panelRef = useRef(null);
   const listRef = useRef(null);
   const triggerRef = useRef(null);
   const previousUnreadRef = useRef(0);
+  const hasUnreadSnapshotRef = useRef(false);
+  const toastTimerRef = useRef(null);
+  const pulseTimerRef = useRef(null);
   const openRef = useRef(open);
   const stompClientRef = useRef(null);
 
@@ -106,6 +113,36 @@ export default function NotificationCenter({ token = "" }) {
   const openPanel = useCallback(() => {
     setRenderPanel(true);
     setOpen(true);
+  }, []);
+
+  const triggerLiveFeedback = useCallback((message) => {
+    if (!message) {
+      return;
+    }
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (pulseTimerRef.current) {
+      clearTimeout(pulseTimerRef.current);
+      pulseTimerRef.current = null;
+    }
+
+    setLiveToast({
+      id: Date.now(),
+      message,
+    });
+
+    setPulseUnreadBadge(false);
+    requestAnimationFrame(() => setPulseUnreadBadge(true));
+
+    toastTimerRef.current = setTimeout(() => {
+      setLiveToast(null);
+    }, 2400);
+    pulseTimerRef.current = setTimeout(() => {
+      setPulseUnreadBadge(false);
+    }, 760);
   }, []);
 
   const requestNotificationApi = useCallback(
@@ -308,8 +345,25 @@ export default function NotificationCenter({ token = "" }) {
   }, [token]);
 
   useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      if (pulseTimerRef.current) {
+        clearTimeout(pulseTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const buttonNode = triggerRef.current;
     if (!buttonNode) {
+      previousUnreadRef.current = unreadCount;
+      return;
+    }
+
+    if (!hasUnreadSnapshotRef.current) {
+      hasUnreadSnapshotRef.current = true;
       previousUnreadRef.current = unreadCount;
       return;
     }
@@ -332,10 +386,11 @@ export default function NotificationCenter({ token = "" }) {
           easing: CLOSE_EASING,
         }
       );
+      triggerLiveFeedback("New notification received.");
     }
 
     previousUnreadRef.current = unreadCount;
-  }, [unreadCount]);
+  }, [triggerLiveFeedback, unreadCount]);
 
   useEffect(() => {
     if (!open || !renderPanel) {
@@ -410,12 +465,7 @@ export default function NotificationCenter({ token = "" }) {
     }
   };
 
-  const buttonLabel = useMemo(() => {
-    if (unreadCount > 0) {
-      return `Notifications (${unreadCount})`;
-    }
-    return "Notifications";
-  }, [unreadCount]);
+  const buttonLabel = useMemo(() => "Notifications", []);
 
   if (!token) {
     return null;
@@ -425,7 +475,7 @@ export default function NotificationCenter({ token = "" }) {
     <div className="relative" ref={containerRef}>
       <button
         type="button"
-        className="btn-secondary"
+        className="btn-secondary notification-trigger"
         ref={triggerRef}
         onClick={() => {
           if (open) {
@@ -437,8 +487,27 @@ export default function NotificationCenter({ token = "" }) {
         aria-expanded={open}
         aria-haspopup="true"
       >
-        {buttonLabel}
+        <span>{buttonLabel}</span>
+        {unreadCount > 0 ? (
+          <span className={`notification-count-badge ${pulseUnreadBadge ? "pulse-once" : ""}`}>
+            {unreadCount > 99 ? "99+" : unreadCount}
+          </span>
+        ) : null}
       </button>
+      <AnimatePresence>
+        {liveToast?.message ? (
+          <MotionDiv
+            key={liveToast.id}
+            initial={{ opacity: 0, y: 8, x: 8 }}
+            animate={{ opacity: 1, y: 0, x: 0 }}
+            exit={{ opacity: 0, y: -4, x: 8 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="notification-live-toast"
+          >
+            {liveToast.message}
+          </MotionDiv>
+        ) : null}
+      </AnimatePresence>
       {renderPanel && (
         <div
           ref={panelRef}

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../api";
+import CountUpNumber from "../components/CountUpNumber";
+import LiveUpdateToast from "../components/LiveUpdateToast";
 import RideFeedbackPanel from "../components/RideFeedbackPanel";
 import LiveMapPanel from "../components/LiveMapPanel";
 import RideHistory from "../components/RideHistory";
@@ -159,10 +161,16 @@ export default function DriverDashboard() {
   const [availabilityMode, setAvailabilityMode] = useState("ONLINE");
   const [autoAssignEnabled, setAutoAssignEnabled] = useState(false);
   const [lastAutoAssignedRideId, setLastAutoAssignedRideId] = useState("");
+  const [liveToast, setLiveToast] = useState(null);
+  const [pulseQueueBadge, setPulseQueueBadge] = useState(false);
   const mapSectionRef = useRef(null);
   const demandSectionRef = useRef(null);
   const feedbackSectionRef = useRef(null);
   const historySectionRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const pulseTimerRef = useRef(null);
+  const hasQueueFeedInitializedRef = useRef(false);
+  const previousOpenRequestsRef = useRef(0);
 
   const fetchRides = useCallback(async () => {
     if (!token) {
@@ -475,6 +483,66 @@ export default function DriverDashboard() {
       .sort((left, right) => right.quality.score - left.quality.score)[0];
   }, [activeRides]);
 
+  const openRequestCount = useMemo(
+    () => activeRides.filter((ride) => ride.status === "REQUESTED" && !ride.driverId).length,
+    [activeRides]
+  );
+
+  const triggerLiveFeedback = useCallback((message, tone = "info") => {
+    if (!message) {
+      return;
+    }
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (pulseTimerRef.current) {
+      clearTimeout(pulseTimerRef.current);
+      pulseTimerRef.current = null;
+    }
+
+    setLiveToast({
+      id: Date.now(),
+      message,
+      tone,
+    });
+    setPulseQueueBadge(false);
+    requestAnimationFrame(() => setPulseQueueBadge(true));
+
+    toastTimerRef.current = setTimeout(() => {
+      setLiveToast(null);
+    }, 2600);
+    pulseTimerRef.current = setTimeout(() => {
+      setPulseQueueBadge(false);
+    }, 780);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      if (pulseTimerRef.current) {
+        clearTimeout(pulseTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!hasQueueFeedInitializedRef.current) {
+      hasQueueFeedInitializedRef.current = true;
+      previousOpenRequestsRef.current = openRequestCount;
+      return;
+    }
+
+    if (openRequestCount > previousOpenRequestsRef.current) {
+      triggerLiveFeedback("New ride request arrived.", "success");
+    }
+
+    previousOpenRequestsRef.current = openRequestCount;
+  }, [openRequestCount, triggerLiveFeedback]);
+
   const patchDriverRideFeedback = useCallback((rideId, patch) => {
     setMyHistory((previous) =>
       previous.map((ride) => (String(ride.id) === String(rideId) ? { ...ride, ...patch } : ride))
@@ -547,11 +615,14 @@ export default function DriverDashboard() {
 
   return (
     <section className="dashboard-view space-y-6 fade-up">
-      <div className="glass-panel card-rise map-motion-panel p-6 sm:p-8">
+      <LiveUpdateToast toast={liveToast} />
+
+      <div className="glass-panel card-rise map-motion-panel p-6 sm:p-8" data-reveal>
         <div className="grid gap-6 lg:grid-cols-[1.35fr,0.95fr]">
           <div>
             <div className="flex flex-wrap items-center gap-3">
               <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Driver dashboard</p>
+              <span className={`live-badge ${pulseQueueBadge ? "pulse-once" : ""}`}>Queue live</span>
               <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${availabilityMeta.badgeClass}`}>
                 {availabilityMeta.label}
               </span>
@@ -618,22 +689,36 @@ export default function DriverDashboard() {
             </div>
           </div>
 
-          <aside className="rounded-[1.75rem] border border-slate-200 bg-white/70 p-5 shadow-[0_20px_40px_-32px_rgba(15,23,42,0.35)]">
+          <aside className="rounded-[1.75rem] border border-slate-200 bg-white/70 p-5 shadow-[0_20px_40px_-32px_rgba(15,23,42,0.35)]" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Operational pulse</p>
             <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Open requests</p>
                 <p className="mt-1 text-2xl font-bold text-slate-900">
-                  {activeRides.filter((ride) => ride.status === "REQUESTED" && !ride.driverId).length}
+                  <CountUpNumber value={openRequestCount} className="tabular-nums" />
                 </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">This week</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900">INR {formatInr(earningsSnapshot.week)}</p>
+                <p className="mt-1 text-2xl font-bold text-slate-900">
+                  INR{" "}
+                  <CountUpNumber
+                    value={earningsSnapshot.week}
+                    className="tabular-nums"
+                    formatter={(number) => formatInr(Math.round(number))}
+                  />
+                </p>
               </div>
               <div className="rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Driver rating</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900">{averageDriverRating} / 5</p>
+                <p className="mt-1 text-2xl font-bold text-slate-900">
+                  <CountUpNumber
+                    value={Number(averageDriverRating) || 0}
+                    className="tabular-nums"
+                    formatter={(number) => Number(number).toFixed(1)}
+                  />{" "}
+                  / 5
+                </p>
               </div>
             </div>
 
@@ -661,21 +746,38 @@ export default function DriverDashboard() {
         </div>
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed rides</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.completed}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber value={stats.completed} className="tabular-nums" />
+            </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">In progress</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.inProgress}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber value={stats.inProgress} className="tabular-nums" />
+            </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Earnings</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">INR {formatInr(stats.earnings)}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              INR{" "}
+              <CountUpNumber
+                value={stats.earnings}
+                className="tabular-nums"
+                formatter={(number) => formatInr(Math.round(number))}
+              />
+            </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Average rating</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{averageDriverRating}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber
+                value={Number(averageDriverRating) || 0}
+                className="tabular-nums"
+                formatter={(number) => Number(number).toFixed(1)}
+              />
+            </p>
           </div>
         </div>
       </div>
@@ -684,8 +786,8 @@ export default function DriverDashboard() {
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{error}</div>
       )}
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <article className="glass-panel map-motion-panel p-6 sm:p-8">
+      <section className="grid gap-6 lg:grid-cols-2" data-reveal>
+        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Availability controls</h2>
           <p className="mt-2 text-sm text-slate-600">Choose your work mode and optionally auto-assign open requests.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -721,20 +823,41 @@ export default function DriverDashboard() {
           </p>
         </article>
 
-        <article className="glass-panel map-motion-panel p-6 sm:p-8">
+        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Earnings snapshot</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Today</p>
-              <p className="mt-1 text-xl font-bold text-slate-900">INR {formatInr(earningsSnapshot.today)}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">
+                INR{" "}
+                <CountUpNumber
+                  value={earningsSnapshot.today}
+                  className="tabular-nums"
+                  formatter={(number) => formatInr(Math.round(number))}
+                />
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Last 7 days</p>
-              <p className="mt-1 text-xl font-bold text-slate-900">INR {formatInr(earningsSnapshot.week)}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">
+                INR{" "}
+                <CountUpNumber
+                  value={earningsSnapshot.week}
+                  className="tabular-nums"
+                  formatter={(number) => formatInr(Math.round(number))}
+                />
+              </p>
             </div>
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Avg per ride</p>
-              <p className="mt-1 text-xl font-bold text-slate-900">INR {formatInr(earningsSnapshot.avgPerRide)}</p>
+              <p className="mt-1 text-xl font-bold text-slate-900">
+                INR{" "}
+                <CountUpNumber
+                  value={earningsSnapshot.avgPerRide}
+                  className="tabular-nums"
+                  formatter={(number) => formatInr(Math.round(number))}
+                />
+              </p>
             </div>
           </div>
           {bestRequestMatch ? (
@@ -758,7 +881,7 @@ export default function DriverDashboard() {
         </article>
       </section>
 
-      <div ref={mapSectionRef}>
+      <div ref={mapSectionRef} data-reveal>
         <LiveMapPanel
           title="Live map"
           defaultCenter={{ lat: 21.774, lon: 78.257 }}
@@ -767,7 +890,7 @@ export default function DriverDashboard() {
         />
       </div>
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={demandSectionRef}>
+      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={demandSectionRef} data-reveal>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Active demand</h2>
@@ -810,7 +933,6 @@ export default function DriverDashboard() {
                 { label: "Request quality", value: `${quality.score}/100 (${quality.tier})` },
               ];
               const showInTripActions = (ride.status === "ACCEPTED" || ride.status === "PICKED") && isMine;
-              const showOtpSummary = isMine && (ride.startOtp || ride.endOtp);
               const showVerification = (ride.status === "ACCEPTED" || ride.status === "PICKED") && isMine;
 
               return (
@@ -977,17 +1099,7 @@ export default function DriverDashboard() {
                         </div>
                       )}
 
-                      {showOtpSummary && (
-                        <div className="mt-4 rounded-xl border border-cyan-200 bg-cyan-50 p-3 text-xs font-semibold text-cyan-800">
-                          <p className="text-[11px] font-semibold uppercase tracking-wide text-cyan-700">OTP summary</p>
-                          <div className="mt-3 space-y-2">
-                            <p>Pickup OTP: {ride.startOtp || "----"}</p>
-                            <p>Complete OTP: {ride.endOtp || "----"}</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {!showInTripActions && !showOtpSummary && (
+                      {!showInTripActions && (
                         <p className="mt-4 text-sm text-slate-500">No extra controls available for this ride yet.</p>
                       )}
                     </div>
@@ -999,7 +1111,7 @@ export default function DriverDashboard() {
         )}
       </section>
 
-      <div ref={feedbackSectionRef}>
+      <div ref={feedbackSectionRef} data-reveal>
         <RideFeedbackPanel
           rides={myHistory}
           userRole="DRIVER"
@@ -1008,7 +1120,7 @@ export default function DriverDashboard() {
         />
       </div>
 
-      <div ref={historySectionRef}>
+      <div ref={historySectionRef} data-reveal>
         <RideHistory rides={myHistory} title="Your ride history" emptyMessage="No completed driver rides yet." autoRefresh={false} />
       </div>
     </section>

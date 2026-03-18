@@ -12,7 +12,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
   const [loading, setLoading] = useState(false);
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpRequested, setOtpRequested] = useState(false);
-  const [otpHint, setOtpHint] = useState("");
   const copy = {
     fullName: "Full name",
     email: "Email",
@@ -25,7 +24,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
     otpRequired: "Request OTP and enter it to complete signup.",
     otpRequestValidation: "Enter your name and email before requesting OTP.",
     otpSentSuccess: "OTP sent. Check your email and enter the code.",
-    otpDevHintPrefix: "Local OTP:",
     role: "Role",
     rider: "Rider",
     driver: "Driver",
@@ -48,7 +46,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
 
     setError("");
     setSuccess("");
-    setOtpHint("");
     setOtpLoading(true);
     try {
       const payload = await apiRequest("/auth/signup/request-otp", "POST", {
@@ -57,9 +54,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       });
       setOtpRequested(true);
       setSuccess(payload?.message || copy.otpSentSuccess);
-      if (payload?.devOtp) {
-        setOtpHint(`${copy.otpDevHintPrefix} ${payload.devOtp}`);
-      }
     } catch (requestError) {
       setError(requestError.message || "Unable to send OTP.");
     } finally {
@@ -71,7 +65,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
     event.preventDefault();
     setError("");
     setSuccess("");
-    setOtpHint("");
     if (!otpRequested || !otp.trim()) {
       setError(copy.otpRequired);
       return;
@@ -180,7 +173,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
 
       {error && <p className="auth-message auth-message--error">{error}</p>}
       {success && <p className="auth-message auth-message--success">{success}</p>}
-      {otpHint && <p className="auth-message auth-message--warning">{otpHint}</p>}
 
       <button type="submit" className="auth-submit" disabled={loading}>
         {loading ? copy.createAccountLoading : copy.createAccountAction}

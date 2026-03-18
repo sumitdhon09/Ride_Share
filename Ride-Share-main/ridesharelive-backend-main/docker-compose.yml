@@ -30,6 +30,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init/10-enable-postgis.sql:/docker-entrypoint-initdb.d/10-enable-postgis.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-rideshare}"]
       interval: 10s
@@ -65,7 +66,7 @@ services:
       MAIL_SKIP_IF_NO_SMTP_HOST: ${MAIL_SKIP_IF_NO_SMTP_HOST:-false}
       MAIL_FROM_ADDRESS: ${MAIL_FROM_ADDRESS:-noreply@ridesharelive.local}
       MAIL_FROM_NAME: ${MAIL_FROM_NAME:-RideShare Live}
-      AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP: ${AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP:-true}
+      AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP: ${AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP:-false}
     depends_on:
       mailpit:
         condition: service_started

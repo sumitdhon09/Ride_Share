@@ -1788,6 +1788,63 @@ html[data-theme="dark-theme"] .auth-input:focus {
   background: #ffffff;
 }
 
+.page-switch-stage {
+  will-change: opacity, transform;
+}
+
+.live-badge {
+  display: inline-flex;
+  align-items: center;
+  border: 1px solid #bfdbfe;
+  border-radius: 9999px;
+  background: #eff6ff;
+  padding: 0.2rem 0.6rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #1d4ed8;
+}
+
+.pulse-once {
+  animation: badgePulse 0.72s cubic-bezier(0.22, 1, 0.36, 1) 1;
+}
+
+.notification-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.notification-count-badge {
+  display: inline-flex;
+  min-width: 1.35rem;
+  justify-content: center;
+  border-radius: 9999px;
+  background: #ef4444;
+  padding: 0.08rem 0.42rem;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.4;
+  color: #ffffff;
+}
+
+.notification-live-toast {
+  position: absolute;
+  right: 0;
+  top: -2.9rem;
+  max-width: 17rem;
+  border: 1px solid #bae6fd;
+  border-radius: 0.85rem;
+  background: #ecfeff;
+  padding: 0.42rem 0.65rem;
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: #0c4a6e;
+  box-shadow: 0 12px 24px -18px #0f172a6b;
+  pointer-events: none;
+}
+
 .card-rise {
   will-change: transform;
   transform-style: preserve-3d;
@@ -1943,6 +2000,13 @@ html[data-page="driver"] .map-motion-panel::after {
   box-shadow: 0 0 0 3px #ffffffc7;
 }
 
+.ride-status-step__dot--active {
+  box-shadow:
+    0 0 0 3px #fde68a80,
+    0 0 0 1px #f59e0b4d inset;
+  animation: rideStepPulse 1.6s ease-in-out infinite;
+}
+
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -1951,6 +2015,28 @@ html[data-page="driver"] .map-motion-panel::after {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@keyframes badgePulse {
+  0% {
+    transform: scale(1);
+  }
+  35% {
+    transform: scale(1.12);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes rideStepPulse {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
   }
 }
 
@@ -2054,7 +2140,9 @@ body {
   .map-motion-panel::before,
   .map-motion-panel::after,
   .map-node::before,
-  .map-motion-panel {
+  .map-motion-panel,
+  .pulse-once,
+  .ride-status-step__dot--active {
     animation: none !important;
   }
 

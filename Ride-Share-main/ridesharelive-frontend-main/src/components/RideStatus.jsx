@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { apiRequest } from "../api";
+
+const MotionDiv = motion.div;
+const MotionParagraph = motion.p;
 
 const STATUS_STEPS = [
   { key: "REQUESTED", label: "Requested" },
@@ -71,7 +75,11 @@ function getTrackingMapSrc(point) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${boundedLat}%2C${boundedLon}`;
 }
 
-function getStepClass(index, activeStep) {
+function getStepClass(index, activeStep, isCompleted = false) {
+  if (isCompleted) {
+    return "border-emerald-400 bg-emerald-400 text-white";
+  }
+
   const pendingStepClass = [
     "border-sky-300 bg-sky-50 text-sky-700",
     "border-cyan-300 bg-cyan-50 text-cyan-700",
@@ -211,6 +219,19 @@ export default function RideStatus({ ride, onComplete }) {
     (currentRide.status === "REQUESTED" || currentRide.status === "ACCEPTED" || currentRide.status === "PICKED");
   const trackingPoint = getTrackingPoint(currentRide.driverLat, currentRide.driverLon);
   const showDriverTracking = currentRide.status === "ACCEPTED" || currentRide.status === "PICKED";
+  const reduceMotion =
+    typeof window !== "undefined" &&
+    typeof window.matchMedia === "function" &&
+    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const normalizedActiveStep = activeStep < 0 ? 0 : activeStep;
+  const isCancelled = currentRide.status === "CANCELLED";
+  const timelineActiveStep = isCancelled ? -1 : normalizedActiveStep;
+  const statusStepProgress =
+    isCancelled
+      ? 0
+      : currentRide.status === "COMPLETED"
+        ? 100
+        : (normalizedActiveStep / (STATUS_STEPS.length - 1)) * 100;
 
   const handleCancelRide = async () => {
     if (!canCancel) {
@@ -236,7 +257,18 @@ export default function RideStatus({ ride, onComplete }) {
   return (
     <section className="glass-panel p-6 sm:p-8">
       <h2 className="text-2xl font-bold text-slate-900">Current ride</h2>
-      <p className="mt-2 text-sm text-slate-600">{STATUS_MESSAGE[currentRide.status] || "Tracking your trip status."}</p>
+      <AnimatePresence mode="wait" initial={false}>
+        <MotionParagraph
+          key={currentRide.status || "UNKNOWN"}
+          className="mt-2 text-sm text-slate-600"
+          initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -6 }}
+          transition={reduceMotion ? { duration: 0 } : { duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+        >
+          {STATUS_MESSAGE[currentRide.status] || "Tracking your trip status."}
+        </MotionParagraph>
+      </AnimatePresence>
 
       <div className="mt-4">
         <div className="flex items-center justify-between text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -297,17 +329,55 @@ export default function RideStatus({ ride, onComplete }) {
         </div>
       )}
 
-      <div className="mt-6 grid gap-2 sm:grid-cols-4">
-        {STATUS_STEPS.map((step, index) => (
-          <div key={step.key} className="flex items-center gap-2 sm:flex-col sm:items-start">
-            <span
-              className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${getStepClass(index, activeStep)}`}
-            >
-              {index + 1}
-            </span>
-            <p className={`text-sm font-semibold ${index <= activeStep ? "text-slate-900" : "text-slate-400"}`}>{step.label}</p>
-          </div>
-        ))}
+      <div className="mt-6">
+        <div className="flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          <span>Status timeline</span>
+          <span>{currentRide.status || "-"}</span>
+        </div>
+        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-200">
+          <MotionDiv
+            className="h-full rounded-full bg-gradient-to-r from-sky-400 via-cyan-400 to-emerald-500"
+            initial={false}
+            animate={{ width: `${Math.max(0, Math.min(100, statusStepProgress))}%` }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.42, ease: [0.22, 1, 0.36, 1] }}
+          />
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-4">
+          {STATUS_STEPS.map((step, index) => {
+            const isComplete = currentRide.status === "COMPLETED" || index < timelineActiveStep;
+            const isActive = !isCancelled && currentRide.status !== "COMPLETED" && index === timelineActiveStep;
+
+            return (
+              <MotionDiv
+                key={step.key}
+                className="flex items-center gap-2 sm:flex-col sm:items-start"
+                initial={false}
+                animate={
+                  isActive && !reduceMotion
+                    ? { y: [0, -2, 0] }
+                    : { y: 0 }
+                }
+                transition={
+                  isActive && !reduceMotion
+                    ? { duration: 0.9, repeat: Infinity, ease: [0.22, 1, 0.36, 1] }
+                    : { duration: 0.2 }
+                }
+              >
+                <span
+                  className={`inline-flex h-8 w-8 items-center justify-center rounded-full border text-xs font-bold ${
+                    isActive ? "ride-status-step__dot--active" : ""
+                  } ${getStepClass(index, timelineActiveStep, currentRide.status === "COMPLETED")}`}
+                >
+                  {index + 1}
+                </span>
+                <p className={`text-sm font-semibold ${isComplete || isActive ? "text-slate-900" : "text-slate-400"}`}>
+                  {step.label}
+                </p>
+              </MotionDiv>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:grid-cols-2">

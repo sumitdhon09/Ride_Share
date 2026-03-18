@@ -68,7 +68,6 @@ public class AuthController {
                 Map.of(
                         "message", result.message(),
                         "emailSent", result.emailSent(),
-                        "devOtp", result.devOtp() == null ? "" : result.devOtp(),
                         "expiresAt", result.expiresAt() == null ? "" : result.expiresAt().toString()
                 )
         );

@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../api";
+import CountUpNumber from "../components/CountUpNumber";
 import LiveMapPanel from "../components/LiveMapPanel";
+import LiveUpdateToast from "../components/LiveUpdateToast";
 import RideBookingForm from "../components/RideBookingForm";
 import RideFeedbackPanel from "../components/RideFeedbackPanel";
 import RideHistory from "../components/RideHistory";
@@ -96,10 +98,18 @@ export default function RiderDashboard() {
   const [workDraft, setWorkDraft] = useState(savedPlaces.work || "");
   const [trustedContact, setTrustedContact] = useState(() => localStorage.getItem(RIDER_TRUSTED_CONTACT_KEY) || "");
   const [bookingPreset, setBookingPreset] = useState(null);
+  const [liveToast, setLiveToast] = useState(null);
+  const [pulseLiveBadge, setPulseLiveBadge] = useState(false);
   const mapSectionRef = useRef(null);
   const driversSectionRef = useRef(null);
   const bookingSectionRef = useRef(null);
   const historySectionRef = useRef(null);
+  const toastTimerRef = useRef(null);
+  const pulseTimerRef = useRef(null);
+  const hasLiveFeedInitializedRef = useRef(false);
+  const previousRideCountRef = useRef(0);
+  const previousActiveRideIdRef = useRef("");
+  const previousActiveStatusRef = useRef("");
 
   const fetchRides = useCallback(async () => {
     if (!token) {
@@ -143,6 +153,86 @@ export default function RiderDashboard() {
       spent: totalSpent,
     };
   }, [rides]);
+  const activeRideId = currentRide ? String(currentRide.id || "") : "";
+  const activeRideStatus = String(currentRide?.status || "");
+
+  const triggerLiveFeedback = useCallback((message, tone = "info") => {
+    if (!message) {
+      return;
+    }
+
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    if (pulseTimerRef.current) {
+      clearTimeout(pulseTimerRef.current);
+      pulseTimerRef.current = null;
+    }
+
+    setLiveToast({
+      id: Date.now(),
+      message,
+      tone,
+    });
+    setPulseLiveBadge(false);
+    requestAnimationFrame(() => setPulseLiveBadge(true));
+
+    toastTimerRef.current = setTimeout(() => {
+      setLiveToast(null);
+    }, 2600);
+    pulseTimerRef.current = setTimeout(() => {
+      setPulseLiveBadge(false);
+    }, 780);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      if (pulseTimerRef.current) {
+        clearTimeout(pulseTimerRef.current);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const rideCount = rides.length;
+
+    if (!hasLiveFeedInitializedRef.current) {
+      hasLiveFeedInitializedRef.current = true;
+      previousRideCountRef.current = rideCount;
+      previousActiveRideIdRef.current = activeRideId;
+      previousActiveStatusRef.current = activeRideStatus;
+      return;
+    }
+
+    let nextToast = null;
+
+    if (activeRideId && activeRideId !== previousActiveRideIdRef.current) {
+      nextToast = { message: "You have a new active ride.", tone: "success" };
+    } else if (!activeRideId && previousActiveRideIdRef.current) {
+      nextToast = { message: "No active ride right now.", tone: "info" };
+    } else if (
+      activeRideId &&
+      activeRideId === previousActiveRideIdRef.current &&
+      activeRideStatus &&
+      activeRideStatus !== previousActiveStatusRef.current
+    ) {
+      nextToast = { message: `Ride status changed to ${activeRideStatus}.`, tone: "info" };
+    } else if (rideCount > previousRideCountRef.current) {
+      nextToast = { message: "New ride update received.", tone: "success" };
+    }
+
+    if (nextToast) {
+      triggerLiveFeedback(nextToast.message, nextToast.tone);
+    }
+
+    previousRideCountRef.current = rideCount;
+    previousActiveRideIdRef.current = activeRideId;
+    previousActiveStatusRef.current = activeRideStatus;
+  }, [activeRideId, activeRideStatus, rides.length, triggerLiveFeedback]);
 
   const selectedDriver = useMemo(
     () => NEARBY_DRIVERS.find((driver) => driver.id === selectedDriverId) || null,
@@ -275,8 +365,13 @@ export default function RiderDashboard() {
 
   return (
     <section className="dashboard-view space-y-6 fade-up">
-      <div className="glass-panel card-rise p-6 sm:p-8">
-        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Rider dashboard</p>
+      <LiveUpdateToast toast={liveToast} />
+
+      <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
+        <div className="flex flex-wrap items-center gap-2">
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Rider dashboard</p>
+          <span className={`live-badge ${pulseLiveBadge ? "pulse-once" : ""}`}>Live updates</span>
+        </div>
         <h1 className="mt-2 text-3xl font-bold text-slate-900">Hello, {riderName}</h1>
         <p className="mt-2 text-slate-600">Book quickly, monitor progress, and keep track of your trips.</p>
         <div className="mt-4">
@@ -316,17 +411,28 @@ export default function RiderDashboard() {
           </div>
         </div>
         <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed rides</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.completed}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber value={stats.completed} className="tabular-nums" />
+            </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Active rides</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">{stats.active}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber value={stats.active} className="tabular-nums" />
+            </p>
           </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total spent</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">INR {formatInr(stats.spent)}</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              INR{" "}
+              <CountUpNumber
+                value={stats.spent}
+                className="tabular-nums"
+                formatter={(number) => formatInr(Math.round(number))}
+              />
+            </p>
           </div>
         </div>
       </div>
@@ -338,7 +444,7 @@ export default function RiderDashboard() {
         <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-700">{infoNotice}</div>
       )}
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8">
+      <section className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Pickup insight</p>
@@ -372,8 +478,8 @@ export default function RiderDashboard() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <article className="glass-panel map-motion-panel p-6 sm:p-8">
+      <section className="grid gap-6 lg:grid-cols-2" data-reveal>
+        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Saved places & quick rebook</h2>
           <p className="mt-2 text-sm text-slate-600">Save frequent routes and load them into booking with one tap.</p>
 
@@ -447,7 +553,7 @@ export default function RiderDashboard() {
           )}
         </article>
 
-        <article className="glass-panel map-motion-panel p-6 sm:p-8">
+        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Safety center</h2>
           <p className="mt-2 text-sm text-slate-600">Keep one trusted contact ready and share live trip summary quickly.</p>
           <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
@@ -479,7 +585,7 @@ export default function RiderDashboard() {
         </article>
       </section>
 
-      <div ref={mapSectionRef}>
+      <div ref={mapSectionRef} data-reveal>
         <LiveMapPanel
           title="Live map"
           defaultCenter={{ lat: 21.774, lon: 78.257 }}
@@ -488,7 +594,7 @@ export default function RiderDashboard() {
         />
       </div>
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={driversSectionRef}>
+      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={driversSectionRef} data-reveal>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Nearby drivers</h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -553,10 +659,12 @@ export default function RiderDashboard() {
       </section>
 
       {loading ? (
-        <div className="glass-panel p-6 text-sm text-slate-600">Loading dashboard...</div>
+        <div className="glass-panel p-6 text-sm text-slate-600" data-reveal>
+          Loading dashboard...
+        </div>
       ) : (
-        <div ref={bookingSectionRef} className="space-y-6">
-          <div>
+        <div ref={bookingSectionRef} className="space-y-6" data-reveal>
+          <div data-reveal>
             {currentRide ? (
               <RideStatus ride={currentRide} onComplete={fetchRides} />
             ) : (
@@ -572,10 +680,10 @@ export default function RiderDashboard() {
               />
             )}
           </div>
-          <div>
+          <div data-reveal>
             <RideFeedbackPanel rides={rides} userRole="RIDER" title="Rider feedback" onRidePatched={patchRideFeedback} />
           </div>
-          <div ref={historySectionRef}>
+          <div ref={historySectionRef} data-reveal>
             <RideHistory rides={rides} title="Your recent rides" emptyMessage="No rides yet. Book your first ride." autoRefresh={false} />
           </div>
         </div>
