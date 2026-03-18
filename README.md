@@ -2,6 +2,12 @@
 
 > **A Modern, Fast, and Secure Ride-Sharing Platform built with Spring Boot, React, and Real-time Location Tracking**
 
+## Repository Layout
+
+- `ridesharelive-backend-main/` : Spring Boot backend for separate backend deployment
+- `ridesharelive-frontend-main/` : React/Vite frontend for separate frontend deployment
+- `DEPLOYMENT.md` : deployment setup notes and required environment variables
+
 ![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-green.svg)
 ![Status](https://img.shields.io/badge/status-Active%20Development-brightgreen.svg)

@@ -1,5 +1,10 @@
 # Deployment Guide
 
+Deploy the two apps separately from the repository root:
+
+- Backend root directory: `ridesharelive-backend-main`
+- Frontend root directory: `ridesharelive-frontend-main`
+
 ## Backend
 
 1. Copy `ridesharelive-backend-main/.env.aws.example` to `ridesharelive-backend-main/.env.aws`.
