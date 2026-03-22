@@ -65,7 +65,6 @@ export default function NotificationCenter({ token = "" }) {
   const [open, setOpen] = useState(false);
   const [renderPanel, setRenderPanel] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sendingTest, setSendingTest] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState("");
@@ -466,22 +465,6 @@ export default function NotificationCenter({ token = "" }) {
     }
   };
 
-  const sendTestNotification = async () => {
-    if (!token || sendingTest) {
-      return;
-    }
-
-    setSendingTest(true);
-    try {
-      await requestNotificationApi("/test", "POST", null);
-      setError("");
-    } catch (requestError) {
-      setError(requestError.message || "Unable to send test notification.");
-    } finally {
-      setSendingTest(false);
-    }
-  };
-
   if (!token) {
     return null;
   }
@@ -533,14 +516,6 @@ export default function NotificationCenter({ token = "" }) {
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={sendTestNotification}
-                disabled={sendingTest}
-              >
-                {sendingTest ? "Sending..." : "Send test"}
-              </button>
-              <button
-                type="button"
                 className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
                 onClick={markAllRead}
               >
@@ -567,7 +542,7 @@ export default function NotificationCenter({ token = "" }) {
                 <p className="mt-2 text-xs leading-5 text-slate-500">
                   {socketConnected
                     ? "Live updates are connected. New ride and payment events will land here."
-                    : "Live sync is idle. Refresh or send a test notification to check delivery."}
+                    : "Live sync is idle. Refresh to check delivery."}
                 </p>
               </div>
             ) : (
