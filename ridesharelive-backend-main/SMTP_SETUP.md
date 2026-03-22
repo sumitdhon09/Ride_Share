@@ -1,8 +1,33 @@
-# SMTP Setup For Signup OTP
+# Email OTP Setup
 
-Use these environment variables to enable email OTP delivery from backend:
+For Railway and other hosts that block outbound SMTP, prefer Resend over SMTP.
+
+## Resend API setup
+
+Use these environment variables to enable signup OTP delivery through Resend's HTTPS API:
 
 ```env
+MAIL_PROVIDER=resend
+MAIL_OTP_ENABLED=true
+MAIL_FROM_ADDRESS=onboarding@resend.dev
+MAIL_FROM_NAME=RideShare Live
+RESEND_API_KEY=re_xxxxxxxxx
+RESEND_API_BASE_URL=https://api.resend.com
+AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP=false
+```
+
+Notes:
+
+- Replace `MAIL_FROM_ADDRESS` with a sender on your verified Resend domain for production.
+- `onboarding@resend.dev` is useful only for initial testing.
+- If delivery still fails, temporarily set `AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP=true` so signup keeps working while you debug.
+
+## SMTP setup
+
+Use these environment variables to enable email OTP delivery through SMTP:
+
+```env
+MAIL_PROVIDER=smtp
 MAIL_HOST=smtp.gmail.com
 MAIL_PORT=587
 MAIL_USERNAME=your-email@gmail.com
@@ -26,6 +51,7 @@ AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP=false
 - Enable 2-Step Verification.
 - Generate an App Password (16 characters).
 - Use the app password in `MAIL_PASSWORD` (not your normal Gmail login password).
+- On Railway, SMTP is plan-dependent and may not be available on lower tiers.
 
 ## Deployment note
 
@@ -46,6 +72,6 @@ AUTH_SIGNUP_OTP_EXPOSE_DEV_OTP=false
 1. Request OTP:
    `POST /auth/signup/request-otp` with body:
    `{"name":"Test User","email":"you@example.com"}`
-2. If SMTP is configured correctly, response includes `"emailSent": true`.
+2. If email delivery is configured correctly, response includes `"emailSent": true`.
 3. Complete signup:
    `POST /auth/signup` with `name`, `email`, `password`, `role`, and `otp`.

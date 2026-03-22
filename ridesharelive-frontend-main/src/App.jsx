@@ -25,7 +25,7 @@ const INITIAL_SESSION = {
 const DEFAULT_PREFERENCES = {
   theme: "urban-transport",
   language: "en",
-  fontScale: 100,
+  fontScale: 90,
 };
 const AVAILABLE_THEMES = ["urban-transport", "dark-theme"];
 const DEFAULT_ADVANCED_SETTINGS = {
@@ -1653,14 +1653,14 @@ export default function App() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.22, ease: "easeOut" }}
-              className="auth-overlay fixed inset-0 z-50 grid place-items-center px-4 py-6"
+                className="auth-overlay fixed inset-0 z-50 grid place-items-center px-3 py-4"
             >
               <MotionDiv
                 initial={{ opacity: 0, y: 16, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 14, scale: 0.97 }}
                 transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="auth-shell w-full max-w-lg"
+                className="auth-shell w-full max-w-md"
                 onClick={(event) => event.stopPropagation()}
               >
                 <button
