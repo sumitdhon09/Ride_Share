@@ -1,6 +1,30 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { apiRequest, storeAuthSession } from "./api";
 import { validateEmail, validatePassword } from "./utils/authValidation";
+
+const MotionButton = motion.button;
+const MotionDiv = motion.div;
+const MotionP = motion.p;
+
+const BUTTON_INTERACTION = {
+  whileHover: { y: -2, scale: 1.01 },
+  whileTap: { y: 0, scale: 0.98 },
+  transition: { type: "spring", stiffness: 420, damping: 28 },
+};
+
+const CARD_INTERACTION = {
+  whileHover: { y: -4, scale: 1.01 },
+  whileTap: { scale: 0.985 },
+  transition: { type: "spring", stiffness: 340, damping: 24 },
+};
+
+const ALERT_TRANSITION = {
+  initial: { opacity: 0, y: 10, filter: "blur(8px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -8, filter: "blur(6px)" },
+  transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+};
 
 export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   const [email, setEmail] = useState("");
@@ -10,6 +34,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   const [error, setError] = useState("");
   const [locationError, setLocationError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [focusedField, setFocusedField] = useState("");
   const [touched, setTouched] = useState({
     email: false,
     password: false,
@@ -113,10 +138,14 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
           autoCapitalize="none"
           spellCheck={false}
           placeholder="you@example.com"
-          className="auth-input"
+          className={`auth-input ${focusedField === "email" ? "auth-input--focused" : ""}`}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          onBlur={() => setTouched((previous) => ({ ...previous, email: true }))}
+          onFocus={() => setFocusedField("email")}
+          onBlur={() => {
+            setFocusedField("");
+            setTouched((previous) => ({ ...previous, email: true }));
+          }}
           aria-invalid={Boolean(emailError)}
           aria-describedby={emailError ? "login-email-error" : undefined}
           required
@@ -138,10 +167,14 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
           type="password"
           autoComplete="current-password"
           placeholder="Enter your password"
-          className="auth-input"
+          className={`auth-input ${focusedField === "password" ? "auth-input--focused" : ""}`}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          onBlur={() => setTouched((previous) => ({ ...previous, password: true }))}
+          onFocus={() => setFocusedField("password")}
+          onBlur={() => {
+            setFocusedField("");
+            setTouched((previous) => ({ ...previous, password: true }));
+          }}
           aria-invalid={Boolean(passwordError)}
           aria-describedby={passwordError ? "login-password-error" : undefined}
           required
@@ -153,7 +186,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         )}
       </div>
 
-      <div className="auth-utility-card">
+      <MotionDiv className="auth-utility-card" whileHover={{ y: -1 }} transition={{ duration: 0.2 }}>
         <label className="auth-checkbox">
           <input
             type="checkbox"
@@ -163,39 +196,50 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
           />
           <span>{copy.locationPermission}</span>
         </label>
-        <button
-          type="button"
-          className="auth-utility-action"
-          onClick={requestLiveLocation}
-        >
+        <MotionButton type="button" className="auth-utility-action" onClick={requestLiveLocation} {...BUTTON_INTERACTION}>
           {copy.useLocationNow}
-        </button>
-      </div>
+        </MotionButton>
+      </MotionDiv>
 
-      {locationError && (
-        <p className="auth-message auth-message--warning">{locationError}</p>
-      )}
+      <AnimatePresence mode="popLayout">
+        {locationError ? (
+          <MotionP key={`login-location-${locationError}`} className="auth-message auth-message--warning" {...ALERT_TRANSITION}>
+            {locationError}
+          </MotionP>
+        ) : null}
+        {error ? (
+          <MotionP
+            key={`login-error-${error}`}
+            className="auth-message auth-message--error"
+            initial={{ opacity: 0, y: 10, filter: "blur(8px)", x: 0 }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)", x: [0, -6, 6, -4, 4, 0] }}
+            exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {error}
+          </MotionP>
+        ) : null}
+      </AnimatePresence>
 
-      {error && <p className="auth-message auth-message--error">{error}</p>}
-
-      <button type="submit" className="auth-submit" disabled={loading}>
+      <MotionButton type="submit" className="auth-submit" disabled={loading} {...BUTTON_INTERACTION}>
         {loading ? copy.loginLoading : copy.loginAction}
-      </button>
+      </MotionButton>
 
       <div className="auth-role-grid" aria-label={copy.role}>
         {roleCards.map((item) => (
-          <button
+          <MotionButton
             key={item.value}
             type="button"
             className={`auth-role-card ${role === item.value ? "auth-role-card--active" : ""}`}
             onClick={() => setRole(item.value)}
+            {...CARD_INTERACTION}
           >
             <span className="auth-role-card__badge">{item.value === "RIDER" ? "R" : "D"}</span>
             <span className="auth-role-card__copy">
               <strong>{item.label}</strong>
               <small>{item.hint}</small>
             </span>
-          </button>
+          </MotionButton>
         ))}
       </div>
     </form>

@@ -9,7 +9,19 @@ import { apiRequest } from "./api";
 
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
+const MotionButton = motion.button;
 const PAGE_SWITCH_EASE = [0.22, 1, 0.36, 1];
+const AUTH_STATE_TRANSITION = {
+  initial: { opacity: 0, y: 10, scale: 0.985, filter: "blur(10px)" },
+  animate: { opacity: 1, y: 0, scale: 1, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -8, scale: 0.975, filter: "blur(8px)" },
+  transition: { duration: 0.28, ease: PAGE_SWITCH_EASE },
+};
+const AUTH_ACTION_INTERACTION = {
+  whileHover: { y: -1, scale: 1.02 },
+  whileTap: { y: 0, scale: 0.97 },
+  transition: { type: "spring", stiffness: 420, damping: 28 },
+};
 const NotificationCenter = lazy(() => import("./components/NotificationCenter"));
 const ThreeBackdrop = lazy(() => import("./components/ThreeBackdrop"));
 const DriverDashboard = lazy(() => import("./pages/DriverDashboard"));
@@ -1663,36 +1675,46 @@ export default function App() {
                 className="auth-shell w-full max-w-md"
                 onClick={(event) => event.stopPropagation()}
               >
-                <button
+                <MotionButton
                   type="button"
                   onClick={closeAuthModal}
                   className="auth-close"
                   aria-label="Close authentication panel"
+                  whileHover={{ y: -1, scale: 1.04 }}
+                  whileTap={{ scale: 0.95 }}
+                  transition={{ type: "spring", stiffness: 420, damping: 28 }}
                 >
                   x
-                </button>
-                <div className="auth-shell__header">
-                  <p className="auth-shell__eyebrow">{dictionary.header.product}</p>
-                  <h2 className="auth-shell__title">{authTitle}</h2>
-                  <p className="auth-shell__subtitle">{authSubtitle}</p>
+                </MotionButton>
+                <div className="auth-shell__stage">
+                  <AnimatePresence mode="wait" initial={false}>
+                    <MotionDiv key={authMode} className="auth-shell__content" {...AUTH_STATE_TRANSITION}>
+                      <div className="auth-shell__header">
+                        <p className="auth-shell__eyebrow">{dictionary.header.product}</p>
+                        <h2 className="auth-shell__title">{authTitle}</h2>
+                        <p className="auth-shell__subtitle">{authSubtitle}</p>
+                      </div>
+                      <div className="auth-shell__form">
+                        {authMode === "login" ? (
+                          <Login onLogin={handleLogin} labels={dictionary.auth} defaultRole={preferredRole} />
+                        ) : (
+                          <Signup onSignup={handleSignup} labels={dictionary.auth} defaultRole={preferredRole} />
+                        )}
+                      </div>
+                      <p className="auth-shell__footer">
+                        <span>{authSwitchPrompt}</span>
+                        <MotionButton
+                          type="button"
+                          className="auth-shell__footer-action"
+                          onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
+                          {...AUTH_ACTION_INTERACTION}
+                        >
+                          {authSwitchAction}
+                        </MotionButton>
+                      </p>
+                    </MotionDiv>
+                  </AnimatePresence>
                 </div>
-                <div className="auth-shell__form">
-                  {authMode === "login" ? (
-                    <Login onLogin={handleLogin} labels={dictionary.auth} defaultRole={preferredRole} />
-                  ) : (
-                    <Signup onSignup={handleSignup} labels={dictionary.auth} defaultRole={preferredRole} />
-                  )}
-                </div>
-                <p className="auth-shell__footer">
-                  <span>{authSwitchPrompt}</span>
-                  <button
-                    type="button"
-                    className="auth-shell__footer-action"
-                    onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                  >
-                    {authSwitchAction}
-                  </button>
-                </p>
               </MotionDiv>
             </MotionDiv>
           ) : null}

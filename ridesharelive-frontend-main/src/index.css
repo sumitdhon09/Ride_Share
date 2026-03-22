@@ -830,6 +830,18 @@ h4 {
 
 .auth-close:hover {
   transform: translateY(-1px);
+  box-shadow:
+    10px 10px 18px color-mix(in srgb, var(--surface-2) 72%, #94a3b8 28%),
+    -10px -10px 18px #ffffff;
+}
+
+.auth-shell__stage {
+  position: relative;
+}
+
+.auth-shell__content {
+  display: grid;
+  will-change: transform, opacity, filter;
 }
 
 .auth-shell__header {
@@ -882,6 +894,14 @@ h4 {
   font-size: 0.9rem;
   font-weight: 800;
   color: var(--ink-1);
+  cursor: pointer;
+  transition:
+    color 0.22s ease,
+    opacity 0.22s ease;
+}
+
+.auth-shell__footer-action:hover {
+  color: var(--accent-strong);
 }
 
 .auth-form {
@@ -900,6 +920,24 @@ h4 {
   font-weight: 800;
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--accent-strong) 72%, var(--ink-2) 28%);
+  transition: color 0.22s ease;
+}
+
+@keyframes authFocusPulse {
+  0% {
+    box-shadow:
+      inset 6px 6px 12px color-mix(in srgb, var(--surface-2) 76%, #cbd5e1 24%),
+      inset -6px -6px 12px #fbfdff,
+      0 0 0 0 color-mix(in srgb, var(--accent) 0%, transparent 100%),
+      0 12px 20px -18px color-mix(in srgb, var(--accent-strong) 34%, #64748b 66%);
+  }
+  100% {
+    box-shadow:
+      inset 6px 6px 12px color-mix(in srgb, var(--surface-2) 76%, #cbd5e1 24%),
+      inset -6px -6px 12px #fbfdff,
+      0 0 0 5px color-mix(in srgb, var(--accent) 14%, transparent 86%),
+      0 18px 28px -22px color-mix(in srgb, var(--accent-strong) 44%, #475569 56%);
+  }
 }
 
 .auth-input {
@@ -921,7 +959,9 @@ h4 {
   transition:
     border-color 0.22s ease,
     box-shadow 0.22s ease,
-    transform 0.22s ease;
+    transform 0.22s ease,
+    filter 0.22s ease;
+  will-change: transform, box-shadow, filter;
 }
 
 .auth-input::placeholder {
@@ -937,6 +977,30 @@ h4 {
     0 0 0 4px color-mix(in srgb, var(--accent) 18%, transparent 82%);
 }
 
+.auth-input--focused {
+  transform: translateY(-1px) scale(1.002);
+  border-color: color-mix(in srgb, var(--accent) 58%, #ffffff 42%);
+  animation: authFocusPulse 1.8s ease-in-out infinite alternate;
+}
+
+.auth-input--otp-error {
+  border-color: #f43f5e;
+  box-shadow:
+    inset 6px 6px 12px color-mix(in srgb, var(--surface-2) 76%, #cbd5e1 24%),
+    inset -6px -6px 12px #fbfdff,
+    0 0 0 4px rgba(244, 63, 94, 0.14),
+    0 18px 28px -24px rgba(244, 63, 94, 0.42);
+}
+
+.auth-input--otp-success {
+  border-color: #22c55e;
+  box-shadow:
+    inset 6px 6px 12px color-mix(in srgb, var(--surface-2) 76%, #cbd5e1 24%),
+    inset -6px -6px 12px #fbfdff,
+    0 0 0 4px rgba(34, 197, 94, 0.14),
+    0 18px 28px -24px rgba(34, 197, 94, 0.34);
+}
+
 .auth-utility-card {
   display: grid;
   gap: 0.38rem;
@@ -950,6 +1014,7 @@ h4 {
   box-shadow:
     10px 10px 18px color-mix(in srgb, var(--surface-2) 72%, #94a3b8 28%),
     -10px -10px 18px #fbfdff;
+  transition: box-shadow 0.24s ease;
 }
 
 .auth-checkbox {
@@ -976,6 +1041,15 @@ h4 {
   font-weight: 800;
   letter-spacing: 0.04em;
   color: color-mix(in srgb, var(--accent-strong) 78%, var(--ink-2) 22%);
+  cursor: pointer;
+  transition:
+    color 0.22s ease,
+    transform 0.22s ease;
+}
+
+.auth-utility-action:hover {
+  color: var(--ink-1);
+  transform: translateX(2px);
 }
 
 .auth-otp-action {
@@ -995,6 +1069,8 @@ h4 {
     box-shadow 0.22s ease,
     filter 0.22s ease,
     opacity 0.22s ease;
+  cursor: pointer;
+  will-change: transform, box-shadow, filter;
 }
 
 .auth-otp-action:hover:not(:disabled) {
@@ -1033,6 +1109,8 @@ h4 {
     transform 0.24s ease,
     box-shadow 0.24s ease,
     filter 0.24s ease;
+  cursor: pointer;
+  will-change: transform, box-shadow, filter;
 }
 
 .auth-submit:hover:not(:disabled) {
@@ -1075,6 +1153,14 @@ h4 {
     border-color 0.24s ease,
     color 0.24s ease,
     background 0.24s ease;
+  cursor: pointer;
+  will-change: transform, box-shadow;
+}
+
+.auth-role-card:hover {
+  box-shadow:
+    14px 14px 24px color-mix(in srgb, var(--surface-2) 72%, #94a3b8 28%),
+    -12px -12px 22px #fbfdff;
 }
 
 .auth-role-card::after {
@@ -1206,6 +1292,10 @@ html[data-theme="dark-theme"] .auth-shell__footer {
   color: color-mix(in srgb, #cbd5e1 72%, #38bdf8 28%);
 }
 
+html[data-theme="dark-theme"] .auth-shell__footer-action:hover {
+  color: #7dd3fc;
+}
+
 html[data-theme="dark-theme"] .auth-message--error {
   border-color: rgba(251, 113, 133, 0.35);
   background: rgba(127, 29, 29, 0.24);
@@ -1287,11 +1377,33 @@ html[data-theme="dark-theme"] .auth-input:focus {
     0 16px 28px -24px rgba(56, 189, 248, 0.56);
 }
 
+html[data-theme="dark-theme"] .auth-input--focused {
+  border-color: rgba(56, 189, 248, 0.82);
+}
+
+html[data-theme="dark-theme"] .auth-input--otp-error {
+  border-color: rgba(251, 113, 133, 0.82);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.78),
+    0 0 0 4px rgba(251, 113, 133, 0.18),
+    0 16px 28px -24px rgba(251, 113, 133, 0.46);
+}
+
+html[data-theme="dark-theme"] .auth-input--otp-success {
+  border-color: rgba(74, 222, 128, 0.82);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.78),
+    0 0 0 4px rgba(74, 222, 128, 0.18),
+    0 16px 28px -24px rgba(74, 222, 128, 0.42);
+}
+
 .auth-message {
   border-radius: 1.2rem;
   padding: 0.85rem 1rem;
   font-size: 0.88rem;
   font-weight: 600;
+  box-shadow: 0 16px 30px -26px rgba(15, 23, 42, 0.28);
+  backdrop-filter: blur(10px);
 }
 
 .auth-message--error {

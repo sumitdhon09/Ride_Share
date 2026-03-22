@@ -1,6 +1,30 @@
 import { useEffect, useState } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { apiRequest, storeAuthSession } from "./api";
 import { validateEmail, validateFullName, validateOtp, validatePassword } from "./utils/authValidation";
+
+const MotionButton = motion.button;
+const MotionDiv = motion.div;
+const MotionP = motion.p;
+
+const BUTTON_INTERACTION = {
+  whileHover: { y: -2, scale: 1.01 },
+  whileTap: { y: 0, scale: 0.98 },
+  transition: { type: "spring", stiffness: 420, damping: 28 },
+};
+
+const CARD_INTERACTION = {
+  whileHover: { y: -4, scale: 1.01 },
+  whileTap: { scale: 0.985 },
+  transition: { type: "spring", stiffness: 340, damping: 24 },
+};
+
+const ALERT_TRANSITION = {
+  initial: { opacity: 0, y: 10, filter: "blur(8px)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)" },
+  exit: { opacity: 0, y: -8, filter: "blur(6px)" },
+  transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
+};
 
 function formatOtpExpiryLabel(expiresAt) {
   if (!expiresAt) {
@@ -70,6 +94,8 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
   const [otpRequested, setOtpRequested] = useState(false);
   const [otpCooldownSeconds, setOtpCooldownSeconds] = useState(0);
   const [otpExpiresAtLabel, setOtpExpiresAtLabel] = useState("");
+  const [focusedField, setFocusedField] = useState("");
+  const [otpFeedback, setOtpFeedback] = useState({ type: "idle", token: 0 });
   const [touched, setTouched] = useState({
     name: false,
     email: false,
@@ -122,6 +148,10 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         }`
       : copy.otpRequired;
 
+  const triggerOtpFeedback = (type) => {
+    setOtpFeedback((previous) => ({ type, token: previous.token + 1 }));
+  };
+
   useEffect(() => {
     if (otpCooldownSeconds <= 0) {
       return undefined;
@@ -133,6 +163,18 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
 
     return () => window.clearInterval(intervalId);
   }, [otpCooldownSeconds]);
+
+  useEffect(() => {
+    if (otpFeedback.type === "idle") {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setOtpFeedback((previous) => ({ ...previous, type: "idle" }));
+    }, 900);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [otpFeedback]);
 
   const handleRequestOtp = async () => {
     const trimmedName = name.trim();
@@ -150,6 +192,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       setError(copy.otpRequestValidation);
       setSuccess("");
       setDevOtpHint("");
+      triggerOtpFeedback("error");
       return;
     }
 
@@ -167,6 +210,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       setOtpRequested(true);
       setOtpCooldownSeconds(retryAfterSeconds);
       setOtpExpiresAtLabel(formatOtpExpiryLabel(payload?.expiresAt));
+      triggerOtpFeedback("success");
       if (nextDevOtp) {
         setOtp(nextDevOtp);
         setDevOtpHint(`Demo OTP: ${nextDevOtp}`);
@@ -177,6 +221,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       }
     } catch (requestError) {
       setDevOtpHint("");
+      triggerOtpFeedback("error");
       const retryAfterSeconds = Math.max(0, Number(requestError?.payload?.retryAfterSeconds) || 0);
       if (retryAfterSeconds > 0) {
         setOtpRequested(true);
@@ -209,10 +254,12 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
     }
     if (!otpRequested || !otp.trim()) {
       setError(copy.otpRequired);
+      triggerOtpFeedback("error");
       return;
     }
     if (nextOtpError) {
       setError(nextOtpError);
+      triggerOtpFeedback("error");
       return;
     }
     setLoading(true);
@@ -236,10 +283,12 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         setDevOtpHint("");
         setOtp("");
         setOtpRequested(false);
+        triggerOtpFeedback("success");
         onSignup?.(loginPayload);
         return;
       } catch {
         setSuccess(copy.signupSuccess);
+        triggerOtpFeedback("success");
       }
 
       setDevOtpHint("");
@@ -248,6 +297,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       onSignup?.();
     } catch (requestError) {
       setError(resolveSignupErrorMessage(requestError, copy));
+      triggerOtpFeedback("error");
     } finally {
       setLoading(false);
     }
@@ -269,10 +319,14 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
           type="text"
           autoComplete="name"
           placeholder="Your name"
-          className="auth-input"
+          className={`auth-input ${focusedField === "name" ? "auth-input--focused" : ""}`}
           value={name}
           onChange={(event) => setName(event.target.value)}
-          onBlur={() => setTouched((previous) => ({ ...previous, name: true }))}
+          onFocus={() => setFocusedField("name")}
+          onBlur={() => {
+            setFocusedField("");
+            setTouched((previous) => ({ ...previous, name: true }));
+          }}
           aria-invalid={Boolean(nameError)}
           aria-describedby={nameError ? "signup-name-error" : undefined}
           required
@@ -296,10 +350,14 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
           autoCapitalize="none"
           spellCheck={false}
           placeholder="you@example.com"
-          className="auth-input"
+          className={`auth-input ${focusedField === "email" ? "auth-input--focused" : ""}`}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
-          onBlur={() => setTouched((previous) => ({ ...previous, email: true }))}
+          onFocus={() => setFocusedField("email")}
+          onBlur={() => {
+            setFocusedField("");
+            setTouched((previous) => ({ ...previous, email: true }));
+          }}
           aria-invalid={Boolean(emailError)}
           aria-describedby={emailError ? "signup-email-error" : undefined}
           required
@@ -321,10 +379,14 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
           type="password"
           autoComplete="new-password"
           placeholder="Create a password"
-          className="auth-input"
+          className={`auth-input ${focusedField === "password" ? "auth-input--focused" : ""}`}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          onBlur={() => setTouched((previous) => ({ ...previous, password: true }))}
+          onFocus={() => setFocusedField("password")}
+          onBlur={() => {
+            setFocusedField("");
+            setTouched((previous) => ({ ...previous, password: true }));
+          }}
           aria-invalid={Boolean(passwordError)}
           aria-describedby={passwordError ? "signup-password-error" : undefined}
           required
@@ -336,12 +398,22 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         )}
       </div>
 
-      <div className="auth-utility-card">
-        <button
+      <MotionDiv
+        className="auth-utility-card"
+        whileHover={{ y: -1 }}
+        animate={
+          otpFeedback.type === "success"
+            ? { scale: [1, 1.012, 1], y: [0, -2, 0] }
+            : { scale: 1, y: 0 }
+        }
+        transition={{ duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <MotionButton
           type="button"
           className="auth-otp-action"
           onClick={handleRequestOtp}
           disabled={otpLoading || otpCooldownSeconds > 0}
+          {...BUTTON_INTERACTION}
         >
           {otpLoading
             ? copy.otpLoading
@@ -350,58 +422,109 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
               : otpRequested
                 ? copy.otpResendAction
                 : copy.otpAction}
-        </button>
+        </MotionButton>
         <span className="auth-otp-helper">{otpHelperMessage}</span>
-      </div>
+      </MotionDiv>
 
-      <div className="auth-field">
-        <label className="auth-field__label" htmlFor="signup-otp">
-          {copy.otp}
-        </label>
-        <input
-          id="signup-otp"
-          name="otp"
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          placeholder={copy.otpPlaceholder}
-          className="auth-input"
-          value={otp}
-          onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
-          onBlur={() => setTouched((previous) => ({ ...previous, otp: true }))}
-          aria-invalid={Boolean(otpError)}
-          aria-describedby={otpError ? "signup-otp-error" : undefined}
-          required
-        />
-        {otpError && (
-          <p id="signup-otp-error" className="mt-2 text-xs font-semibold text-rose-600">
-            {otpError}
-          </p>
-        )}
-      </div>
+      <MotionDiv
+        key={`${otpFeedback.type}-${otpFeedback.token}`}
+        animate={
+          otpFeedback.type === "error"
+            ? { x: [0, -8, 8, -6, 6, -3, 3, 0] }
+            : otpFeedback.type === "success"
+              ? { scale: [1, 1.015, 1], y: [0, -1, 0] }
+              : { x: 0, scale: 1, y: 0 }
+        }
+        transition={{ duration: 0.38, ease: [0.22, 1, 0.36, 1] }}
+      >
+        <div className="auth-field">
+          <label className="auth-field__label" htmlFor="signup-otp">
+            {copy.otp}
+          </label>
+          <input
+            id="signup-otp"
+            name="otp"
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            placeholder={copy.otpPlaceholder}
+            className={`auth-input ${focusedField === "otp" ? "auth-input--focused" : ""} ${
+              otpFeedback.type === "error" ? "auth-input--otp-error" : ""
+            } ${otpFeedback.type === "success" ? "auth-input--otp-success" : ""}`}
+            value={otp}
+            onChange={(event) => setOtp(event.target.value.replace(/\D/g, "").slice(0, 6))}
+            onFocus={() => setFocusedField("otp")}
+            onBlur={() => {
+              setFocusedField("");
+              setTouched((previous) => ({ ...previous, otp: true }));
+            }}
+            aria-invalid={Boolean(otpError)}
+            aria-describedby={otpError ? "signup-otp-error" : undefined}
+            required
+          />
+          {otpError && (
+            <p id="signup-otp-error" className="mt-2 text-xs font-semibold text-rose-600">
+              {otpError}
+            </p>
+          )}
+        </div>
+      </MotionDiv>
 
-      {error && <p className="auth-message auth-message--error">{error}</p>}
-      {success && <p className="auth-message auth-message--success">{success}</p>}
-      {devOtpHint && <p className="auth-message auth-message--success">{devOtpHint}</p>}
+      <AnimatePresence mode="popLayout">
+        {error ? (
+          <MotionP
+            key={`signup-error-${error}`}
+            className="auth-message auth-message--error"
+            initial={{ opacity: 0, y: 10, filter: "blur(8px)", x: 0 }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)", x: [0, -6, 6, -4, 4, 0] }}
+            exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
+            transition={{ duration: 0.34, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {error}
+          </MotionP>
+        ) : null}
+        {success ? (
+          <MotionP
+            key={`signup-success-${success}`}
+            className="auth-message auth-message--success"
+            initial={{ opacity: 0, y: 10, filter: "blur(8px)", scale: 0.985 }}
+            animate={{ opacity: 1, y: 0, filter: "blur(0px)", scale: [1, 1.012, 1] }}
+            exit={{ opacity: 0, y: -8, filter: "blur(6px)" }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {success}
+          </MotionP>
+        ) : null}
+        {devOtpHint ? (
+          <MotionP
+            key={`signup-dev-otp-${devOtpHint}`}
+            className="auth-message auth-message--success"
+            {...ALERT_TRANSITION}
+          >
+            {devOtpHint}
+          </MotionP>
+        ) : null}
+      </AnimatePresence>
 
-      <button type="submit" className="auth-submit" disabled={loading}>
+      <MotionButton type="submit" className="auth-submit" disabled={loading} {...BUTTON_INTERACTION}>
         {loading ? copy.createAccountLoading : copy.createAccountAction}
-      </button>
+      </MotionButton>
 
       <div className="auth-role-grid" aria-label={copy.role}>
         {roleCards.map((item) => (
-          <button
+          <MotionButton
             key={item.value}
             type="button"
             className={`auth-role-card ${role === item.value ? "auth-role-card--active" : ""}`}
             onClick={() => setRole(item.value)}
+            {...CARD_INTERACTION}
           >
             <span className="auth-role-card__badge">{item.value === "RIDER" ? "R" : "D"}</span>
             <span className="auth-role-card__copy">
               <strong>{item.label}</strong>
               <small>{item.hint}</small>
             </span>
-          </button>
+          </MotionButton>
         ))}
       </div>
     </form>
