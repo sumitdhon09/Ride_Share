@@ -1,0 +1,9 @@
+{
+  "name": "rideshare-workspace",
+  "private": true,
+  "scripts": {
+    "dev": "powershell -ExecutionPolicy Bypass -File ./run-project.ps1",
+    "dev:frontend": "npm --prefix ridesharelive-frontend-main run dev",
+    "dev:backend": "powershell -ExecutionPolicy Bypass -File ./ridesharelive-backend-main/scripts/run-local.ps1"
+  }
+}

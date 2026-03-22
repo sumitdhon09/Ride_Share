@@ -1,0 +1,11 @@
+.git
+.idea
+.logs
+.vercel
+**/node_modules
+**/dist
+**/coverage
+**/target
+**/.DS_Store
+**/*.log
+ridesharelive-frontend-main/.vercel
