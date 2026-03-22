@@ -198,6 +198,8 @@ const TRANSLATIONS = {
       subtitle: "click. ride. arrive.",
       loginSignup: "Login",
       logout: "Logout",
+      home: "Home",
+      dashboard: "Dashboard",
       settings: "Settings",
       close: "Close",
       user: "User",
@@ -325,6 +327,8 @@ const TRANSLATIONS = {
       subtitle: "click. ride. arrive.",
       loginSignup: "लॉगिन",
       logout: "लॉगआउट",
+      home: "होम",
+      dashboard: "डैशबोर्ड",
       settings: "सेटिंग्स",
       close: "बंद करें",
       user: "यूज़र",
@@ -430,6 +434,16 @@ function getStoredSession() {
     role: (localStorage.getItem("role") || "").toUpperCase(),
     userId: localStorage.getItem("userId") || "",
   };
+}
+
+function getDefaultPageForRole(role = "") {
+  if (role === "RIDER") {
+    return "rider";
+  }
+  if (role === "DRIVER") {
+    return "driver";
+  }
+  return "home";
 }
 
 function normalizeLanguageCode(languageCode) {
@@ -982,6 +996,7 @@ export default function App() {
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
+  const [activePage, setActivePage] = useState(() => getDefaultPageForRole(getStoredSession().role));
   const [authMode, setAuthMode] = useState("login");
   const [preferredRole, setPreferredRole] = useState("RIDER");
   const [showAuth, setShowAuth] = useState(false);
@@ -995,15 +1010,7 @@ export default function App() {
   const [settingsNotice, setSettingsNotice] = useState("");
   const [userSettingsPrefix, setUserSettingsPrefix] = useState("");
 
-  const currentPage = useMemo(() => {
-    if (session.role === "RIDER") {
-      return "rider";
-    }
-    if (session.role === "DRIVER") {
-      return "driver";
-    }
-    return "home";
-  }, [session.role]);
+  const currentPage = activePage;
   const dictionary = TRANSLATIONS[preferences.language] || TRANSLATIONS.en;
   const revealKey = `${currentPage}|${showAuth}|${showSettings}|${preferences.theme}`;
   useRevealItems(appRef, revealKey);
@@ -1325,6 +1332,7 @@ export default function App() {
   useEffect(() => {
     const handleSessionExpired = () => {
       setSession(INITIAL_SESSION);
+      setActivePage("home");
       setPreferredRole(session.role === "DRIVER" ? "DRIVER" : "RIDER");
       setAuthMode("login");
       setShowAuth(true);
@@ -1350,13 +1358,17 @@ export default function App() {
   };
 
   const handleLogin = (data) => {
-    setSession(buildSessionFromAuthPayload(data));
+    const nextSession = buildSessionFromAuthPayload(data);
+    setSession(nextSession);
+    setActivePage(getDefaultPageForRole(nextSession.role));
     setShowAuth(false);
   };
 
   const handleSignup = (data) => {
     if (data?.accessToken || data?.token) {
-      setSession(buildSessionFromAuthPayload(data));
+      const nextSession = buildSessionFromAuthPayload(data);
+      setSession(nextSession);
+      setActivePage(getDefaultPageForRole(nextSession.role));
       setShowAuth(false);
       return;
     }
@@ -1366,6 +1378,7 @@ export default function App() {
   const handleLogout = () => {
     clearSessionStorage();
     setSession(INITIAL_SESSION);
+    setActivePage("home");
     setAdvancedSettings({ ...DEFAULT_ADVANCED_SETTINGS });
     setUserSettingsPrefix("");
     hasLoadedRemoteSettingsRef.current = false;
@@ -1375,12 +1388,10 @@ export default function App() {
   };
 
   const handleBrandClick = () => {
-    clearSessionStorage();
-    setSession(INITIAL_SESSION);
+    setActivePage("home");
     setShowAuth(false);
     setShowSettings(false);
     setShowHeaderMenu(false);
-    window.location.reload();
   };
 
   const changeLanguage = (event) => {
@@ -1512,6 +1523,19 @@ export default function App() {
                       >
                         {showSettings ? dictionary.header.close : dictionary.header.settings}
                       </button>
+
+                      {session.token ? (
+                        <button
+                          type="button"
+                          className="header-menu__item header-menu__item--primary"
+                          onClick={() => {
+                            setActivePage(currentPage === "home" ? getDefaultPageForRole(session.role) : "home");
+                            setShowHeaderMenu(false);
+                          }}
+                        >
+                          {currentPage === "home" ? dictionary.header.dashboard : dictionary.header.home}
+                        </button>
+                      ) : null}
 
                       {session.token ? (
                         <button type="button" className="header-menu__item header-menu__item--danger" onClick={handleLogout}>
