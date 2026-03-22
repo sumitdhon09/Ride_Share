@@ -47,30 +47,38 @@ public class AuthController {
     @Operation(summary = "Generate and send a signup OTP")
     @ApiResponse(responseCode = "200", description = "OTP generated")
     public ResponseEntity<?> requestSignupOtp(@RequestBody AuthSignupOtpRequest request) {
-        if (request == null || request.getEmail() == null || request.getEmail().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "email is required."));
-        }
-
-        SignupOtpService.IssueResult result = signupOtpService.issueOtp(request.getName(), request.getEmail());
-        if (!result.accepted()) {
-            if (result.rateLimited()) {
-                return ResponseEntity.status(429).body(
-                        Map.of(
-                                "message", result.message(),
-                                "retryAfterSeconds", result.retryAfterSeconds()
-                        )
-                );
+        try {
+            SignupOtpService.IssueResult result = signupOtpService.issueOtp(
+                    request == null ? null : request.getName(),
+                    request == null ? null : request.getEmail()
+            );
+            if (!result.accepted()) {
+                if (result.rateLimited()) {
+                    return ResponseEntity.status(429).body(
+                            Map.of(
+                                    "message", result.message(),
+                                    "retryAfterSeconds", result.retryAfterSeconds()
+                            )
+                    );
+                }
+                return ResponseEntity.badRequest().body(Map.of("message", result.message()));
             }
-            return ResponseEntity.badRequest().body(Map.of("message", result.message()));
-        }
 
-        return ResponseEntity.ok(
-                Map.of(
-                        "message", result.message(),
-                        "emailSent", result.emailSent(),
-                        "expiresAt", result.expiresAt() == null ? "" : result.expiresAt().toString()
-                )
-        );
+            Map<String, Object> response = new java.util.LinkedHashMap<>();
+            response.put("message", result.message());
+            response.put("emailSent", result.emailSent());
+            response.put("expiresAt", result.expiresAt() == null ? "" : result.expiresAt().toString());
+            if (result.retryAfterSeconds() > 0) {
+                response.put("retryAfterSeconds", result.retryAfterSeconds());
+            }
+            if (result.devOtp() != null && !result.devOtp().isBlank()) {
+                response.put("devOtp", result.devOtp());
+            }
+
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException validationError) {
+            return ResponseEntity.badRequest().body(Map.of("message", validationError.getMessage()));
+        }
     }
 
     @PostMapping("/signup")
@@ -84,7 +92,8 @@ public class AuthController {
             return ResponseEntity.badRequest().body(Map.of("message", "otp is required."));
         }
 
-        SignupOtpService.VerificationResult verificationResult = signupOtpService.verifyOtp(request.getEmail(), request.getOtp());
+        SignupOtpService.VerificationResult verificationResult =
+                signupOtpService.verifyOtp(request.getEmail(), request.getOtp());
         if (!verificationResult.valid()) {
             return ResponseEntity.badRequest().body(Map.of("message", verificationResult.message()));
         }
@@ -92,11 +101,16 @@ public class AuthController {
         User user = User.builder()
                 .name(request.getName())
                 .email(request.getEmail())
+                .phoneNumber(request.getPhoneNumber())
                 .password(request.getPassword())
                 .role(request.getRole())
                 .build();
-        userService.registerUser(user);
-        return ResponseEntity.ok(Map.of("message", "Account created/updated successfully."));
+        try {
+            userService.registerUser(user);
+            return ResponseEntity.ok(Map.of("message", "Account created/updated successfully."));
+        } catch (IllegalArgumentException validationError) {
+            return ResponseEntity.badRequest().body(Map.of("message", validationError.getMessage()));
+        }
     }
 
     @PostMapping("/login")
@@ -110,12 +124,12 @@ public class AuthController {
 
         User user = userService.findByEmail(request.getEmail()).orElse(null);
         if (user == null) {
-            return ResponseEntity.status(401).body("Account not found. Please sign up first.");
+            return ResponseEntity.status(401).body(Map.of("message", "Account not found. Please sign up first."));
         }
 
         boolean valid = userService.passwordMatches(request.getPassword(), user.getPassword());
         if (!valid) {
-            return ResponseEntity.status(401).body("Incorrect password.");
+            return ResponseEntity.status(401).body(Map.of("message", "Incorrect password."));
         }
 
         String effectiveRole = resolveLoginRole(request.getRole(), user.getRole());

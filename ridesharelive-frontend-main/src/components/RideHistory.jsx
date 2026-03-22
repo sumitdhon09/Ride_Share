@@ -22,6 +22,51 @@ function formatCurrency(value) {
   return `INR ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value) || 0)}`;
 }
 
+function RideHistoryPlaceholder({ title }) {
+  return (
+    <section className="glass-panel p-6 sm:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">{title}</h2>
+          <p className="mt-2 text-sm text-slate-500">Syncing your latest trips and payment updates.</p>
+        </div>
+        <span className="rounded-full border border-slate-200 bg-white/85 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+          Loading
+        </span>
+      </div>
+      <div className="mt-5 space-y-3" aria-hidden="true">
+        {[0, 1, 2].map((item) => (
+          <div key={item} className="rounded-2xl border border-slate-200 bg-white/85 p-4 shadow-sm">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="h-4 rounded-full bg-slate-200/80" />
+              <div className="h-4 rounded-full bg-slate-200/70" />
+              <div className="h-4 rounded-full bg-slate-200/60" />
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-4">
+              {[0, 1, 2, 3].map((slot) => (
+                <div key={slot} className="h-10 rounded-2xl bg-slate-100" />
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function RideHistoryEmptyState({ title, emptyMessage }) {
+  return (
+    <div className="mt-5 rounded-[1.75rem] border border-dashed border-slate-300 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.96),_rgba(241,245,249,0.96)_52%,_rgba(226,232,240,0.98)_100%)] p-6 text-center shadow-[0_18px_40px_rgba(148,163,184,0.14)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">{title}</p>
+      <h2 className="mt-3 text-2xl font-bold text-slate-900">No rides to show yet</h2>
+      <p className="mt-3 text-sm leading-6 text-slate-600">{emptyMessage}</p>
+      <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
+        Completed and cancelled trips will appear here automatically.
+      </p>
+    </div>
+  );
+}
+
 export default function RideHistory({
   rides,
   title = "Ride history",
@@ -72,12 +117,7 @@ export default function RideHistory({
   const orderedRides = [...(resolvedRides || [])].sort((left, right) => (right.id || 0) - (left.id || 0));
 
   if (loading) {
-    return (
-      <section className="glass-panel p-6">
-        <h2 className="text-xl font-bold text-slate-900">{title}</h2>
-        <p className="mt-3 text-sm text-slate-600">Loading ride history...</p>
-      </section>
-    );
+    return <RideHistoryPlaceholder title={title} />;
   }
 
   if (error) {
@@ -93,7 +133,7 @@ export default function RideHistory({
     <section className="glass-panel p-6 sm:p-8">
       <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">{title}</h2>
       {orderedRides.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-600">{emptyMessage}</p>
+        <RideHistoryEmptyState title={title} emptyMessage={emptyMessage} />
       ) : (
         <div className="mt-5 overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-y-2">

@@ -2,10 +2,18 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import Login from "../Login";
-import { apiRequest } from "../api";
+import { apiRequest, storeAuthSession } from "../api";
 
 vi.mock("../api", () => ({
   apiRequest: vi.fn(),
+  storeAuthSession: vi.fn((payload) => {
+    localStorage.setItem("token", payload.accessToken || payload.token || "");
+    localStorage.setItem("refreshToken", payload.refreshToken || "");
+    localStorage.setItem("role", payload.role || "");
+    localStorage.setItem("name", payload.name || "");
+    localStorage.setItem("userId", String(payload.id || ""));
+    return payload;
+  }),
 }));
 
 describe("Login", () => {
@@ -49,6 +57,12 @@ describe("Login", () => {
     expect(localStorage.getItem("role")).toBe("RIDER");
     expect(localStorage.getItem("name")).toBe("Test Rider");
     expect(localStorage.getItem("userId")).toBe("55");
+    expect(storeAuthSession).toHaveBeenCalledWith(
+      expect.objectContaining({
+        token: "token-123",
+        role: "RIDER",
+      })
+    );
     expect(onLogin).toHaveBeenCalledWith(
       expect.objectContaining({
         role: "RIDER",

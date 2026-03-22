@@ -2,6 +2,7 @@ package com.example.backend.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 import java.time.Clock;
@@ -48,7 +49,7 @@ class RidePredictiveInsightsServiceTest {
         rides.add(activeRide(401L, Ride.Status.ACCEPTED, 18));
         rides.add(activeRide(402L, Ride.Status.PICKED, 22));
 
-        when(rideRepository.findAll()).thenReturn(rides);
+        when(rideRepository.findRelevantForPredictiveInsights(any(), any(), any())).thenReturn(rides);
 
         RidePredictiveInsightsService.PredictiveInsights insights = predictiveInsightsService.generateInsights();
 
@@ -63,7 +64,7 @@ class RidePredictiveInsightsServiceTest {
 
     @Test
     void generateInsightsReturnsNeutralDefaultsWhenHistoryIsEmpty() {
-        when(rideRepository.findAll()).thenReturn(List.of());
+        when(rideRepository.findRelevantForPredictiveInsights(any(), any(), any())).thenReturn(List.of());
 
         RidePredictiveInsightsService.PredictiveInsights insights = predictiveInsightsService.generateInsights();
 

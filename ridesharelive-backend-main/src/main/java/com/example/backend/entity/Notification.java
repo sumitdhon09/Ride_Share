@@ -7,6 +7,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,7 +15,13 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
-@Table(name = "notifications")
+@Table(
+        name = "notifications",
+        indexes = {
+                @Index(name = "idx_notification_user_channel_created", columnList = "userId, channel, createdAt"),
+                @Index(name = "idx_notification_user_channel_read", columnList = "userId, channel, is_read")
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -53,4 +60,3 @@ public class Notification {
     @Column(length = 20, nullable = false)
     private String status;
 }
-

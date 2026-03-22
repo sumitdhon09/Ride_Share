@@ -15,14 +15,10 @@ export default defineConfig({
             return 'react-vendor'
           }
           if (id.includes('three')) {
-            return 'three-vendor'
+            return 'visual-vendor'
           }
-          if (
-            id.includes('@stomp/stompjs') ||
-            id.includes('locomotive-scroll') ||
-            id.includes('velocity-animate')
-          ) {
-            return 'ui-vendor'
+          if (id.includes('@stomp/stompjs') || id.includes('velocity-animate')) {
+            return 'notifications-vendor'
           }
           return 'vendor'
         },

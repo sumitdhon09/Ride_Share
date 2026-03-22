@@ -35,12 +35,14 @@ class SignupOtpServiceTest {
 
     @Test
     void issueOtpReturnsDevOtpAndVerificationConsumesIt() {
-        SignupOtpService.IssueResult issueResult = signupOtpService.issueOtp("Test Rider", "rider@example.com");
+        SignupOtpService.IssueResult issueResult =
+                signupOtpService.issueOtp("Test Rider", "rider@example.com");
 
         assertTrue(issueResult.accepted());
         assertFalse(issueResult.emailSent());
         assertNotNull(issueResult.devOtp());
         assertEquals(6, issueResult.devOtp().length());
+        assertTrue(issueResult.retryAfterSeconds() > 0);
 
         SignupOtpService.VerificationResult verificationResult =
                 signupOtpService.verifyOtp("rider@example.com", issueResult.devOtp());
@@ -55,8 +57,10 @@ class SignupOtpServiceTest {
 
     @Test
     void issueOtpIsRateLimitedWithinCooldownWindow() {
-        SignupOtpService.IssueResult firstIssue = signupOtpService.issueOtp("Test Rider", "rider@example.com");
-        SignupOtpService.IssueResult secondIssue = signupOtpService.issueOtp("Test Rider", "rider@example.com");
+        SignupOtpService.IssueResult firstIssue =
+                signupOtpService.issueOtp("Test Rider", "rider@example.com");
+        SignupOtpService.IssueResult secondIssue =
+                signupOtpService.issueOtp("Test Rider", "rider@example.com");
 
         assertTrue(firstIssue.accepted());
         assertFalse(secondIssue.accepted());
@@ -69,7 +73,8 @@ class SignupOtpServiceTest {
         when(otpEmailService.sendSignupOtpEmail(anyString(), anyString(), anyString()))
                 .thenReturn(OtpEmailService.MailDeliveryResult.success("OTP sent to your email address."));
 
-        SignupOtpService.IssueResult issueResult = signupOtpService.issueOtp("Test Rider", "rider@example.com");
+        SignupOtpService.IssueResult issueResult =
+                signupOtpService.issueOtp("Test Rider", "rider@example.com");
 
         assertTrue(issueResult.accepted());
         assertTrue(issueResult.emailSent());

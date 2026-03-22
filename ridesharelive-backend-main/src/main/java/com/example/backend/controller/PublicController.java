@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 public class PublicController {
 
-    @GetMapping("/")
+    @GetMapping("/api/status")
     public Map<String, String> root() {
         return Map.of("message", "Backend is running");
     }

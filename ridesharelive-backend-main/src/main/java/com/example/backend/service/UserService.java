@@ -3,7 +3,9 @@ package com.example.backend.service;
 import java.util.Locale;
 import java.util.Optional;
 
+import com.example.backend.util.ContactPointNormalizer;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -19,11 +21,15 @@ public class UserService {
     @Autowired
     PasswordEncoder passwordEncoder;
 
+    @Value("${app.user.default-country-code:+91}")
+    private String defaultCountryCode;
+
     private String normalizeEmail(String email) {
-        if (email == null) {
-            return "";
-        }
-        return email.trim().toLowerCase(Locale.ROOT);
+        return ContactPointNormalizer.normalizeEmail(email);
+    }
+
+    private String normalizePhoneNumber(String phoneNumber) {
+        return ContactPointNormalizer.normalizePhoneNumber(phoneNumber, defaultCountryCode);
     }
 
     private String normalizeRole(String role) {
@@ -39,11 +45,28 @@ public class UserService {
 
     public User registerUser(User user) {
         String normalizedEmail = normalizeEmail(user.getEmail());
+        if (normalizedEmail.isBlank()) {
+            throw new IllegalArgumentException("email is required.");
+        }
+
+        String normalizedPhoneNumber = normalizePhoneNumber(user.getPhoneNumber());
         Optional<User> existing = userRepository.findByEmailIgnoreCase(normalizedEmail);
+        if (!normalizedPhoneNumber.isBlank()) {
+            Optional<User> phoneOwner = userRepository.findByPhoneNumber(normalizedPhoneNumber);
+            if (phoneOwner.isPresent()
+                    && existing.map(User::getId).map(id -> !id.equals(phoneOwner.get().getId())).orElse(true)) {
+                throw new IllegalArgumentException("This mobile number is already linked to another account.");
+            }
+        }
 
         User target = existing.orElseGet(User::new);
         target.setName(user.getName());
         target.setEmail(normalizedEmail);
+        if (!normalizedPhoneNumber.isBlank()) {
+            target.setPhoneNumber(normalizedPhoneNumber);
+        } else if (target.getPhoneNumber() == null || target.getPhoneNumber().isBlank()) {
+            target.setPhoneNumber(null);
+        }
         target.setPassword(passwordEncoder.encode(user.getPassword()));
         target.setRole(normalizeRole(user.getRole()));
 

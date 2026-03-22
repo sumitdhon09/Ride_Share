@@ -3,29 +3,23 @@ package com.example.backend.config;
 import java.util.ArrayList;
 import java.util.List;
 
+import lombok.Getter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
+@Getter
 @Component
 @ConfigurationProperties(prefix = "app.security")
 public class AppSecurityProperties {
 
     private List<String> corsAllowedOriginPatterns = new ArrayList<>(
-            List.of("http://localhost:5173", "http://127.0.0.1:5173")
+            List.of("*")
     );
 
     private boolean swaggerEnabled = true;
 
-    public List<String> getCorsAllowedOriginPatterns() {
-        return corsAllowedOriginPatterns;
-    }
-
     public void setCorsAllowedOriginPatterns(List<String> corsAllowedOriginPatterns) {
         this.corsAllowedOriginPatterns = corsAllowedOriginPatterns;
-    }
-
-    public boolean isSwaggerEnabled() {
-        return swaggerEnabled;
     }
 
     public void setSwaggerEnabled(boolean swaggerEnabled) {
@@ -44,9 +38,7 @@ public class AppSecurityProperties {
             }
         }
         if (normalizedPatterns.isEmpty()) {
-            throw new IllegalStateException(
-                    "APP_CORS_ALLOWED_ORIGINS must contain at least one frontend origin."
-            );
+            normalizedPatterns.add("*");
         }
         return normalizedPatterns;
     }

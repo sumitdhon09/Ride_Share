@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { apiRequest } from "./api";
+import { apiRequest, storeAuthSession } from "./api";
+import { validateEmail, validatePassword } from "./utils/authValidation";
 
 export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   const [email, setEmail] = useState("");
@@ -9,6 +10,10 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   const [error, setError] = useState("");
   const [locationError, setLocationError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [touched, setTouched] = useState({
+    email: false,
+    password: false,
+  });
   const copy = {
     role: "Login as",
     rider: "Rider",
@@ -26,6 +31,8 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
     { value: "RIDER", label: copy.rider, hint: "Book your next trip" },
     { value: "DRIVER", label: copy.driver, hint: "Go online and earn" },
   ];
+  const emailError = touched.email ? validateEmail(email) : "";
+  const passwordError = touched.password ? validatePassword(password) : "";
 
   const requestLiveLocation = () =>
     new Promise((resolve) => {
@@ -61,6 +68,19 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
+    const nextFieldErrors = {
+      email: validateEmail(email),
+      password: validatePassword(password),
+    };
+    setTouched({
+      email: true,
+      password: true,
+    });
+    if (nextFieldErrors.email || nextFieldErrors.password) {
+      setError("Please fix the highlighted fields before logging in.");
+      return;
+    }
+
     setError("");
     setLocationError("");
     setLoading(true);
@@ -70,12 +90,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
       }
 
       const payload = await apiRequest("/auth/login", "POST", { email, password, role });
-      const accessToken = payload.accessToken || payload.token || "";
-      localStorage.setItem("token", accessToken);
-      localStorage.setItem("refreshToken", payload.refreshToken || "");
-      localStorage.setItem("role", payload.role || "");
-      localStorage.setItem("name", payload.name || "");
-      localStorage.setItem("userId", String(payload.id || ""));
+      storeAuthSession(payload);
       onLogin?.(payload);
     } catch (requestError) {
       setError(requestError.message || "Unable to login.");
@@ -92,13 +107,25 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         </label>
         <input
           id="login-email"
+          name="email"
           type="email"
+          autoComplete="username"
+          autoCapitalize="none"
+          spellCheck={false}
           placeholder="you@example.com"
           className="auth-input"
           value={email}
           onChange={(event) => setEmail(event.target.value)}
+          onBlur={() => setTouched((previous) => ({ ...previous, email: true }))}
+          aria-invalid={Boolean(emailError)}
+          aria-describedby={emailError ? "login-email-error" : undefined}
           required
         />
+        {emailError && (
+          <p id="login-email-error" className="mt-2 text-xs font-semibold text-rose-600">
+            {emailError}
+          </p>
+        )}
       </div>
 
       <div className="auth-field">
@@ -107,13 +134,23 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         </label>
         <input
           id="login-password"
+          name="password"
           type="password"
+          autoComplete="current-password"
           placeholder="Enter your password"
           className="auth-input"
           value={password}
           onChange={(event) => setPassword(event.target.value)}
+          onBlur={() => setTouched((previous) => ({ ...previous, password: true }))}
+          aria-invalid={Boolean(passwordError)}
+          aria-describedby={passwordError ? "login-password-error" : undefined}
           required
         />
+        {passwordError && (
+          <p id="login-password-error" className="mt-2 text-xs font-semibold text-rose-600">
+            {passwordError}
+          </p>
+        )}
       </div>
 
       <div className="auth-utility-card">

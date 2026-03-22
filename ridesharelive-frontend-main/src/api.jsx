@@ -12,13 +12,52 @@ const API_BASE = (import.meta.env.VITE_API_BASE_URL || defaultApiBase)
   .replace(/\/+$/, "");
 export const API_BASE_URL = API_BASE;
 
-function clearStoredSession(notify = false) {
+function dispatchSessionExpired(detail = {}) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  window.dispatchEvent(
+    new CustomEvent("rideshare:session-expired", {
+      detail,
+    })
+  );
+}
+
+function clearStoredSession(notify = false, detail = {}) {
   localStorage.removeItem("token");
   localStorage.removeItem("refreshToken");
+  localStorage.removeItem("role");
+  localStorage.removeItem("name");
+  localStorage.removeItem("userId");
 
-  if (notify && typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("rideshare:session-expired"));
+  if (notify) {
+    dispatchSessionExpired(detail);
   }
+}
+
+export function storeAuthSession(payload) {
+  const accessToken = String(payload?.accessToken || payload?.token || "").trim();
+  const refreshToken = String(payload?.refreshToken || "").trim();
+  const role = String(payload?.role || "").trim().toUpperCase();
+  const name = String(payload?.name || "").trim();
+  const userId = payload?.id !== undefined && payload?.id !== null ? String(payload.id) : "";
+
+  localStorage.setItem("token", accessToken);
+  localStorage.setItem("refreshToken", refreshToken);
+  localStorage.setItem("role", role);
+  localStorage.setItem("name", name);
+  localStorage.setItem("userId", userId);
+
+  return {
+    token: accessToken,
+    accessToken,
+    refreshToken,
+    role,
+    name,
+    id: userId,
+    userId,
+  };
 }
 
 function getApiBaseCandidates(apiBase) {
@@ -139,7 +178,12 @@ export async function apiRequest(path, method = "GET", body = null, token = null
           const retryHeaders = { ...headers, Authorization: `Bearer ${nextAccessToken}` };
           response = await requestAtBase(baseUrl, cleanedPath, method, retryHeaders, body);
         } else {
-          clearStoredSession(true);
+          clearStoredSession(true, {
+            status: response.status,
+            path: cleanedPath,
+            message: "Session expired. Please login again.",
+            reason: "refresh_failed",
+          });
         }
       }
       break;
@@ -155,16 +199,34 @@ export async function apiRequest(path, method = "GET", body = null, token = null
   const payload = await readResponseBody(response);
   if (!response.ok) {
     if ((response.status === 401 || response.status === 403) && Boolean(headers.Authorization)) {
-      clearStoredSession(true);
-      throw new Error("Session expired. Please login again.");
+      const detailMessage =
+        typeof payload === "string" && payload.trim()
+          ? payload.trim()
+          : payload && typeof payload === "object" && payload.message
+            ? payload.message
+            : "Session expired. Please login again.";
+      clearStoredSession(true, {
+        status: response.status,
+        path: cleanedPath,
+        message: detailMessage,
+        reason: response.status === 401 ? "unauthorized" : "forbidden",
+      });
+      const sessionError = new Error("Session expired. Please login again.");
+      sessionError.status = response.status;
+      sessionError.payload = payload;
+      throw sessionError;
     }
+    let error;
     if (typeof payload === "string" && payload.trim()) {
-      throw new Error(payload);
+      error = new Error(payload);
+    } else if (payload && typeof payload === "object" && payload.message) {
+      error = new Error(payload.message);
+    } else {
+      error = new Error(`Request failed with status ${response.status}`);
     }
-    if (payload && typeof payload === "object" && payload.message) {
-      throw new Error(payload.message);
-    }
-    throw new Error(`Request failed with status ${response.status}`);
+    error.status = response.status;
+    error.payload = payload;
+    throw error;
   }
 
   return payload;

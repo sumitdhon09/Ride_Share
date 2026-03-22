@@ -21,21 +21,28 @@ export default function ThreeBackdrop({ theme = "amber" }) {
       return undefined;
     }
 
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const saveDataEnabled = navigator.connection?.saveData === true;
+    if (prefersReducedMotion || saveDataEnabled) {
+      return undefined;
+    }
+
+    const lowMemoryDevice = (navigator.deviceMemory || 8) <= 4;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(50, host.clientWidth / host.clientHeight, 0.1, 100);
     camera.position.z = 16;
 
     const renderer = new THREE.WebGLRenderer({
       alpha: true,
-      antialias: true,
-      powerPreference: "high-performance",
+      antialias: !lowMemoryDevice,
+      powerPreference: lowMemoryDevice ? "default" : "high-performance",
     });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 1.5));
+    renderer.setPixelRatio(lowMemoryDevice ? 1 : Math.min(window.devicePixelRatio || 1, 1.25));
     renderer.setSize(host.clientWidth, host.clientHeight);
     renderer.domElement.setAttribute("aria-hidden", "true");
     host.appendChild(renderer.domElement);
 
-    const count = window.innerWidth < 768 ? 420 : 820;
+    const count = window.innerWidth < 768 ? (lowMemoryDevice ? 160 : 300) : (lowMemoryDevice ? 360 : 620);
     const positions = new Float32Array(count * 3);
     for (let index = 0; index < count; index += 1) {
       const radius = 5 + Math.random() * 10;
@@ -66,7 +73,7 @@ export default function ThreeBackdrop({ theme = "amber" }) {
     let running = true;
     const clock = new THREE.Clock();
     let previousFrameTime = 0;
-    const targetFrameMs = 1000 / 45;
+    const targetFrameMs = lowMemoryDevice ? 1000 / 24 : 1000 / 36;
 
     const animate = (frameTime = 0) => {
       if (!running) {

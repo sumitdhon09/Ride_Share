@@ -14,7 +14,6 @@
   },
   "dependencies": {
     "@stomp/stompjs": "^7.3.0",
-    "locomotive-scroll": "^5.0.1",
     "motion": "^12.35.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",

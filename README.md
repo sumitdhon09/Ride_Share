@@ -1,6 +1,8 @@
-# 🚗 RideShare Live - Ride Sharing Application
+# RideShare Live
 
-> **A Modern, Fast, and Secure Ride-Sharing Platform built with Spring Boot, React, and Real-time Location Tracking**
+RideShare Live is a full-stack ride-sharing platform built as a startup-style mobility product. It offers OTP-based authentication, map-integrated ride booking, real-time ride tracking, driver matching and dispatch, WebSocket chat, notifications, ride scheduling, ratings, ride history, wallet and refund flows, SOS support, KYC verification, driver earnings, and admin analytics.
+
+The platform is designed for Rider, Driver, and Admin workflows, with a focus on real-time interaction, role-based access, and an end-to-end mobility experience.
 
 ## Repository Layout
 
@@ -126,7 +128,7 @@ Firebase (Push Notifications)
 Docker
 Docker Compose
 Kubernetes (Production)
-AWS / Azure / GCP
+Cloud / container deployment
 CI/CD Pipeline (GitHub Actions)
 ```
 
@@ -705,7 +707,7 @@ git push heroku main
 heroku logs --tail
 ```
 
-### **AWS Deployment**
+### **VM Deployment**
 
 ```bash
 # Create EC2 instance

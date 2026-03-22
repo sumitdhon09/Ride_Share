@@ -4,11 +4,12 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.example.backend.util.ContactPointNormalizer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -17,10 +18,12 @@ import org.springframework.stereotype.Service;
 public class SignupOtpService {
 
     private static final int OTP_LENGTH = 6;
+    private static final long CLEANUP_INTERVAL_SECONDS = 60;
 
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, PendingOtp> pendingOtps = new ConcurrentHashMap<>();
     private final Clock clock = Clock.systemUTC();
+    private final AtomicLong lastCleanupEpochSecond = new AtomicLong(0);
 
     @Autowired
     private OtpEmailService otpEmailService;
@@ -42,9 +45,10 @@ public class SignupOtpService {
             return IssueResult.disabled();
         }
 
-        String normalizedEmail = normalizeEmail(email);
+        String otpTarget = resolveOtpTarget(email);
         Instant now = Instant.now(clock);
-        PendingOtp existing = pendingOtps.get(normalizedEmail);
+        cleanupExpiredOtpsIfDue(now);
+        PendingOtp existing = pendingOtps.get(otpTarget);
         if (existing != null && existing.expiresAt().isAfter(now) && existing.canResendAt().isAfter(now)) {
             return IssueResult.rateLimited(Duration.between(now, existing.canResendAt()).getSeconds());
         }
@@ -56,15 +60,20 @@ public class SignupOtpService {
                 now.plusSeconds(Math.max(60L, otpTtlSeconds)),
                 now.plusSeconds(Math.max(0L, resendDelaySeconds))
         );
-        pendingOtps.put(normalizedEmail, nextOtp);
+        pendingOtps.put(otpTarget, nextOtp);
 
-        OtpEmailService.MailDeliveryResult mailDeliveryResult =
-                otpEmailService.sendSignupOtpEmail(nextOtp.name(), normalizedEmail, otp);
-        boolean emailSent = mailDeliveryResult.sent();
-        String devOtp = exposeDevOtp ? otp : null;
-        IssueResult result = IssueResult.issued(emailSent, devOtp, nextOtp.expiresAt(), mailDeliveryResult.message());
+        DeliveryAttempt deliveryAttempt = sendOtp(nextOtp.name(), otpTarget, otp);
+        String devOtp = exposeDevOtp && !deliveryAttempt.deliverySent() ? otp : null;
+        long retryAfterSeconds = Math.max(1L, Duration.between(now, nextOtp.canResendAt()).getSeconds());
+        IssueResult result = IssueResult.issued(
+                deliveryAttempt.deliverySent(),
+                devOtp,
+                nextOtp.expiresAt(),
+                retryAfterSeconds,
+                deliveryAttempt.message()
+        );
         if (!result.accepted()) {
-            pendingOtps.remove(normalizedEmail, nextOtp);
+            pendingOtps.remove(otpTarget, nextOtp);
         }
         return result;
     }
@@ -74,20 +83,27 @@ public class SignupOtpService {
             return VerificationResult.success();
         }
 
-        String normalizedEmail = normalizeEmail(email);
         String normalizedOtp = otp == null ? "" : otp.trim();
         if (normalizedOtp.isBlank()) {
             return VerificationResult.invalid("OTP is required.");
         }
 
-        PendingOtp pendingOtp = pendingOtps.get(normalizedEmail);
+        final String otpTarget;
+        try {
+            otpTarget = resolveOtpTarget(email);
+        } catch (IllegalArgumentException validationError) {
+            return VerificationResult.invalid(validationError.getMessage());
+        }
+
+        Instant now = Instant.now(clock);
+        cleanupExpiredOtpsIfDue(now);
+        PendingOtp pendingOtp = pendingOtps.get(otpTarget);
         if (pendingOtp == null) {
             return VerificationResult.invalid("Request an OTP first.");
         }
 
-        Instant now = Instant.now(clock);
         if (pendingOtp.expiresAt().isBefore(now)) {
-            pendingOtps.remove(normalizedEmail, pendingOtp);
+            pendingOtps.remove(otpTarget, pendingOtp);
             return VerificationResult.invalid("OTP expired. Request a new code.");
         }
 
@@ -95,14 +111,14 @@ public class SignupOtpService {
             return VerificationResult.invalid("Invalid OTP.");
         }
 
-        pendingOtps.remove(normalizedEmail, pendingOtp);
+        pendingOtps.remove(otpTarget, pendingOtp);
         return VerificationResult.success();
     }
 
     private String generateOtp() {
         int bound = (int) Math.pow(10, OTP_LENGTH);
         int value = secureRandom.nextInt(bound);
-        return String.format(Locale.ROOT, "%0" + OTP_LENGTH + "d", value);
+        return String.format(java.util.Locale.ROOT, "%0" + OTP_LENGTH + "d", value);
     }
 
     private static String defaultName(String name) {
@@ -112,11 +128,36 @@ public class SignupOtpService {
         return name.trim();
     }
 
-    private static String normalizeEmail(String email) {
-        return email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
+    private String resolveOtpTarget(String email) {
+        String normalizedEmail = ContactPointNormalizer.normalizeEmail(email);
+        if (normalizedEmail.isBlank()) {
+            throw new IllegalArgumentException("email is required.");
+        }
+        return normalizedEmail;
+    }
+
+    private DeliveryAttempt sendOtp(String name, String otpTarget, String otp) {
+        OtpEmailService.MailDeliveryResult mailDeliveryResult =
+                otpEmailService.sendSignupOtpEmail(name, otpTarget, otp);
+        return new DeliveryAttempt(mailDeliveryResult.sent(), mailDeliveryResult.message());
+    }
+
+    private void cleanupExpiredOtpsIfDue(Instant now) {
+        long nowEpochSecond = now.getEpochSecond();
+        long lastCleanup = lastCleanupEpochSecond.get();
+        if (nowEpochSecond - lastCleanup < CLEANUP_INTERVAL_SECONDS) {
+            return;
+        }
+        if (!lastCleanupEpochSecond.compareAndSet(lastCleanup, nowEpochSecond)) {
+            return;
+        }
+        pendingOtps.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
     }
 
     private record PendingOtp(String otp, String name, Instant expiresAt, Instant canResendAt) {
+    }
+
+    private record DeliveryAttempt(boolean deliverySent, String message) {
     }
 
     public record IssueResult(
@@ -137,12 +178,20 @@ public class SignupOtpService {
             return new IssueResult(false, true, false, null, null, Math.max(1L, retryAfterSeconds), "Please wait before requesting another OTP.");
         }
 
-        static IssueResult issued(boolean emailSent, String devOtp, Instant expiresAt, String failureMessage) {
-            boolean accepted = emailSent || devOtp != null;
-            String message = emailSent
+        static IssueResult issued(boolean deliverySent, String devOtp, Instant expiresAt, long retryAfterSeconds, String failureMessage) {
+            boolean accepted = deliverySent || devOtp != null;
+            String message = deliverySent
                     ? "OTP sent to your email address."
                     : (devOtp != null ? "OTP generated for local development." : failureMessage);
-            return new IssueResult(accepted, false, emailSent, devOtp, expiresAt, 0L, message);
+            return new IssueResult(
+                    accepted,
+                    false,
+                    deliverySent,
+                    devOtp,
+                    expiresAt,
+                    accepted ? Math.max(1L, retryAfterSeconds) : 0L,
+                    message
+            );
         }
     }
 

@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import heroImage from "./assets/1.png";
 import safetyImage from "./assets/2.png";
 import Login from "./Login";
 import Signup from "./Signup";
 import LiveMapPanel from "./components/LiveMapPanel";
-import NotificationCenter from "./components/NotificationCenter";
-import ThreeBackdrop from "./components/ThreeBackdrop";
-import DriverDashboard from "./pages/DriverDashboard";
-import RiderDashboard from "./pages/RiderDashboard";
 import { apiRequest } from "./api";
 
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
 const PAGE_SWITCH_EASE = [0.22, 1, 0.36, 1];
+const NotificationCenter = lazy(() => import("./components/NotificationCenter"));
+const ThreeBackdrop = lazy(() => import("./components/ThreeBackdrop"));
+const DriverDashboard = lazy(() => import("./pages/DriverDashboard"));
+const RiderDashboard = lazy(() => import("./pages/RiderDashboard"));
 
 const INITIAL_SESSION = {
   token: "",
@@ -62,6 +62,15 @@ let googleTranslateLoaderPromise = null;
 function isNotFoundError(error) {
   const message = String(error?.message || "").toLowerCase();
   return message.includes("404") || message.includes("not found");
+}
+
+function buildSessionFromAuthPayload(data) {
+  return {
+    token: String(data?.accessToken || data?.token || localStorage.getItem("token") || ""),
+    name: String(data?.name || localStorage.getItem("name") || ""),
+    role: String(data?.role || localStorage.getItem("role") || "").toUpperCase(),
+    userId: String(data?.id || data?.userId || localStorage.getItem("userId") || ""),
+  };
 }
 
 function loadGoogleTranslateWidget() {
@@ -669,7 +678,12 @@ function HomeLanding({ onOpenAuth, copy }) {
       <div className="landing-lower-grid">
         <div className="glass-panel card-rise landing-preview p-5 sm:p-6" data-reveal>
           <div className="landing-preview__frame">
-            <img src={heroImage} alt="Ride matching preview" className="h-72 w-full rounded-[1.6rem] object-cover sm:h-80" />
+            <img
+              src={heroImage}
+              alt="Ride matching preview"
+              className="h-72 w-full rounded-[1.6rem] object-cover sm:h-80"
+              decoding="async"
+            />
             <div className="landing-preview__overlay">
               <p className="landing-preview__kicker">{text.appDemoEyebrow}</p>
               <h2 className="landing-preview__title">{text.appDemoTitle}</h2>
@@ -884,14 +898,26 @@ function HomeLanding({ onOpenAuth, copy }) {
       <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
         <div className="grid gap-6 lg:grid-cols-2">
           <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-            <img src={heroImage} alt="Booking and matching screenshot" className="h-56 w-full object-cover sm:h-64" />
+            <img
+              src={heroImage}
+              alt="Booking and matching screenshot"
+              className="h-56 w-full object-cover sm:h-64"
+              loading="lazy"
+              decoding="async"
+            />
             <div className="p-4">
               <h4 className="text-lg font-bold text-slate-900">{text.appDemoRideTitle}</h4>
               <p className="mt-2 text-sm text-slate-600">{text.appDemoRideBody}</p>
             </div>
           </article>
           <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
-            <img src={safetyImage} alt="Live tracking and safety screenshot" className="h-56 w-full object-cover sm:h-64" />
+            <img
+              src={safetyImage}
+              alt="Live tracking and safety screenshot"
+              className="h-56 w-full object-cover sm:h-64"
+              loading="lazy"
+              decoding="async"
+            />
             <div className="p-4">
               <h4 className="text-lg font-bold text-slate-900">{text.appDemoSafetyTitle}</h4>
               <p className="mt-2 text-sm text-slate-600">{text.appDemoSafetyBody}</p>
@@ -1312,16 +1338,16 @@ export default function App() {
   };
 
   const handleLogin = (data) => {
-    setSession({
-      token: data?.token || localStorage.getItem("token") || "",
-      name: data?.name || localStorage.getItem("name") || "",
-      role: (data?.role || localStorage.getItem("role") || "").toUpperCase(),
-      userId: String(data?.id || localStorage.getItem("userId") || ""),
-    });
+    setSession(buildSessionFromAuthPayload(data));
     setShowAuth(false);
   };
 
-  const handleSignup = () => {
+  const handleSignup = (data) => {
+    if (data?.accessToken || data?.token) {
+      setSession(buildSessionFromAuthPayload(data));
+      setShowAuth(false);
+      return;
+    }
     setAuthMode("login");
   };
 
@@ -1375,7 +1401,11 @@ export default function App() {
         aria-hidden="true"
         style={{ position: "fixed", left: "-9999px", top: "0", opacity: 0, pointerEvents: "none" }}
       />
-      {currentPage === "home" ? <ThreeBackdrop theme={preferences.theme} /> : null}
+      {currentPage === "home" ? (
+        <Suspense fallback={null}>
+          <ThreeBackdrop theme={preferences.theme} />
+        </Suspense>
+      ) : null}
       <div className="app-shell">
         <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur" data-reveal="instant">
           <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
@@ -1442,7 +1472,9 @@ export default function App() {
                             <p className="header-menu__user">{session.name || session.role || dictionary.header.user}</p>
                           </div>
                           <div className="header-menu__control">
-                            <NotificationCenter token={session.token} />
+                            <Suspense fallback={null}>
+                              <NotificationCenter token={session.token} />
+                            </Suspense>
                           </div>
                         </>
                       ) : null}
@@ -1591,8 +1623,16 @@ export default function App() {
                 transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: PAGE_SWITCH_EASE }}
               >
                 {currentPage === "home" && <HomeLanding onOpenAuth={openAuthModal} copy={dictionary.home} />}
-                {currentPage === "rider" && <RiderDashboard />}
-                {currentPage === "driver" && <DriverDashboard />}
+                {currentPage === "rider" && (
+                  <Suspense fallback={<div className="glass-panel p-6 text-sm text-slate-500">Loading rider dashboard...</div>}>
+                    <RiderDashboard />
+                  </Suspense>
+                )}
+                {currentPage === "driver" && (
+                  <Suspense fallback={<div className="glass-panel p-6 text-sm text-slate-500">Loading driver dashboard...</div>}>
+                    <DriverDashboard />
+                  </Suspense>
+                )}
               </MotionDiv>
             </AnimatePresence>
           </main>

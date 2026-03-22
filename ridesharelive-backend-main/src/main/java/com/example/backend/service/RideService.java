@@ -8,6 +8,7 @@ import java.time.Instant;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.backend.entity.Ride;
 import com.example.backend.entity.User;
@@ -79,11 +80,17 @@ public class RideService {
                 throw new IllegalArgumentException("Ride must be accepted before pickup.");
             }
             validateOtp(ride.getStartOtp(), otp, "Invalid start OTP.");
+            if (ride.getPickedAt() == null) {
+                ride.setPickedAt(Instant.now());
+            }
         } else if (status == Ride.Status.COMPLETED) {
             if (ride.getStatus() != Ride.Status.PICKED) {
                 throw new IllegalArgumentException("Ride must be picked before completion.");
             }
             validateOtp(ride.getEndOtp(), otp, "Invalid end OTP.");
+            if (ride.getCompletedAt() == null) {
+                ride.setCompletedAt(Instant.now());
+            }
         }
 
         ride.setStatus(status);
@@ -95,19 +102,17 @@ public class RideService {
         return updatedRide;
     }
 
+    @Transactional(readOnly = true)
     public List<Ride> getRidesForUser(User user) {
-        return rideRepository.findAll().stream()
-                .filter(r -> (r.getRiderId() != null && r.getRiderId().equals(user.getId()))
-                || (r.getDriverId() != null && r.getDriverId().equals(user.getId())))
-                .toList();
+        return rideRepository.findByRiderIdOrDriverIdOrderByCreatedAtDesc(user.getId(), user.getId());
     }
 
+    @Transactional(readOnly = true)
     public List<Ride> getRequestedRides() {
-        return rideRepository.findAll().stream()
-                .filter(r -> r.getStatus() != Ride.Status.COMPLETED && r.getStatus() != Ride.Status.CANCELLED)
-                .toList();
+        return rideRepository.findByStatusNotInOrderByCreatedAtDesc(List.of(Ride.Status.COMPLETED, Ride.Status.CANCELLED));
     }
 
+    @Transactional(readOnly = true)
     public Ride getRideById(Long rideId) {
         return rideRepository.findById(rideId).orElse(null);
     }
@@ -192,6 +197,9 @@ public class RideService {
         ride.setCancelledBy(cancelledBy);
         ride.setCancellationReason(normalizedReason);
         ride.setCancellationFee(fee);
+        if (ride.getCancelledAt() == null) {
+            ride.setCancelledAt(Instant.now());
+        }
         Ride cancelledRide = rideRepository.save(ride);
         notificationService.notifyRideEvent(cancelledRide);
         return cancelledRide;

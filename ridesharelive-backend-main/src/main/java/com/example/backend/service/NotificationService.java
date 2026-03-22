@@ -9,8 +9,10 @@ import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import com.example.backend.entity.Notification;
 import com.example.backend.entity.Ride;
 import com.example.backend.entity.User;
@@ -32,8 +34,14 @@ public class NotificationService {
     @Autowired
     private OtpEmailService otpEmailService;
 
-    @Autowired
+    @Autowired(required = false)
     private SimpMessagingTemplate messagingTemplate;
+
+    @Value("${app.notifications.demo-seed-enabled:false}")
+    private boolean demoSeedEnabled;
+
+    @Value("${app.notifications.mock-channels-enabled:false}")
+    private boolean mockChannelsEnabled;
 
     public void notifyRideEvent(Ride ride) {
         if (ride == null || ride.getStatus() == null) {
@@ -46,13 +54,17 @@ public class NotificationService {
 
         if (ride.getRiderId() != null) {
             createInApp(ride.getRiderId(), ride.getId(), title, message, eventType);
-            dispatchOutboundMock(ride.getRiderId(), title, message, eventType, "EMAIL");
-            dispatchOutboundMock(ride.getRiderId(), title, message, eventType, "SMS");
+            if (mockChannelsEnabled) {
+                dispatchOutboundMock(ride.getRiderId(), title, message, eventType, "EMAIL");
+                dispatchOutboundMock(ride.getRiderId(), title, message, eventType, "SMS");
+            }
         }
         if (ride.getDriverId() != null) {
             createInApp(ride.getDriverId(), ride.getId(), title, message, eventType);
-            dispatchOutboundMock(ride.getDriverId(), title, message, eventType, "EMAIL");
-            dispatchOutboundMock(ride.getDriverId(), title, message, eventType, "SMS");
+            if (mockChannelsEnabled) {
+                dispatchOutboundMock(ride.getDriverId(), title, message, eventType, "EMAIL");
+                dispatchOutboundMock(ride.getDriverId(), title, message, eventType, "SMS");
+            }
         }
     }
 
@@ -73,7 +85,9 @@ public class NotificationService {
     }
 
     public Map<String, Object> getInAppNotificationPayload(Long userId) {
-        seedDummyInAppNotificationsIfEmpty(userId);
+        if (demoSeedEnabled) {
+            seedDummyInAppNotificationsIfEmpty(userId);
+        }
 
         List<Notification> items = notificationRepository
                 .findTop100ByUserIdAndChannelOrderByCreatedAtDesc(userId, CHANNEL_IN_APP);
@@ -145,6 +159,7 @@ public class NotificationService {
         notificationRepository.saveAll(demoNotifications);
     }
 
+    @Transactional
     public void markRead(Long notificationId, Long userId) {
         Optional<Notification> target = notificationRepository.findByIdAndUserId(notificationId, userId);
         if (target.isEmpty()) {
@@ -160,24 +175,16 @@ public class NotificationService {
         pushUnreadSync(userId);
     }
 
+    @Transactional
     public void markAllRead(Long userId) {
-        List<Notification> items = notificationRepository
-                .findTop100ByUserIdAndChannelOrderByCreatedAtDesc(userId, CHANNEL_IN_APP);
-        boolean changed = false;
-        for (Notification notification : items) {
-            if (!Boolean.TRUE.equals(notification.getRead())) {
-                notification.setRead(true);
-                notification.setStatus("READ");
-                changed = true;
-            }
-        }
-        if (changed) {
-            notificationRepository.saveAll(items);
+        int changed = notificationRepository.markAllReadByUserIdAndChannel(userId, CHANNEL_IN_APP, "READ");
+        if (changed > 0) {
             pushUnreadSync(userId);
         }
     }
 
     private Notification createInApp(Long userId, Long rideId, String title, String message, String eventType) {
+        Instant now = Instant.now();
         Notification notification = Notification.builder()
                 .userId(userId)
                 .rideId(rideId)
@@ -187,8 +194,8 @@ public class NotificationService {
                 .eventType(eventType)
                 .read(false)
                 .status("DELIVERED")
-                .createdAt(Instant.now())
-                .deliveredAt(Instant.now())
+                .createdAt(now)
+                .deliveredAt(now)
                 .build();
         notificationRepository.save(notification);
         pushCreatedNotification(notification);
@@ -274,7 +281,7 @@ public class NotificationService {
     }
 
     private void pushCreatedNotification(Notification notification) {
-        if (notification == null || notification.getUserId() == null) {
+        if (notification == null || notification.getUserId() == null || messagingTemplate == null) {
             return;
         }
 
@@ -292,7 +299,6 @@ public class NotificationService {
         payload.put("type", "NOTIFICATION_CREATED");
         payload.put("notification", notification);
         payload.put("unreadCount", unreadCount);
-
         messagingTemplate.convertAndSendToUser(
                 targetUser.get().getEmail(),
                 "/queue/notifications",
@@ -301,7 +307,7 @@ public class NotificationService {
     }
 
     private void pushUnreadSync(Long userId) {
-        if (userId == null) {
+        if (userId == null || messagingTemplate == null) {
             return;
         }
 
@@ -318,7 +324,6 @@ public class NotificationService {
         payload.put("type", "NOTIFICATION_SYNC");
         payload.put("items", items);
         payload.put("unreadCount", unreadCount);
-
         messagingTemplate.convertAndSendToUser(
                 targetUser.get().getEmail(),
                 "/queue/notifications",

@@ -1,6 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { apiRequest } from "../api";
+import { formatPaymentModeLabel, paymentStatusMeta } from "../utils/paymentPresentation";
+import {
+  calculateCancellationFeePreview,
+  formatInr,
+  formatRideTimestamp,
+  readRideBookingConfirmation,
+} from "../utils/ridePresentation";
 
 const MotionDiv = motion.div;
 const MotionParagraph = motion.p;
@@ -11,6 +18,12 @@ const STATUS_STEPS = [
   { key: "PICKED", label: "Picked up" },
   { key: "COMPLETED", label: "Completed" },
 ];
+const TIMELINE_TIMESTAMP_FIELDS = {
+  REQUESTED: ["createdAt", "requestedAt", "bookedAt"],
+  ACCEPTED: ["acceptedAt"],
+  PICKED: ["pickedAt"],
+  COMPLETED: ["completedAt"],
+};
 
 const STATUS_MESSAGE = {
   REQUESTED: "Looking for the nearest driver.",
@@ -99,6 +112,7 @@ function getStepClass(index, activeStep, isCompleted = false) {
 export default function RideStatus({ ride, onComplete }) {
   const token = localStorage.getItem("token") || "";
   const [currentRide, setCurrentRide] = useState(ride || null);
+  const [bookingConfirmation, setBookingConfirmation] = useState(null);
   const [timedProgress, setTimedProgress] = useState(0);
   const [progressStartedAtMs, setProgressStartedAtMs] = useState(null);
   const [cancelReason, setCancelReason] = useState("Plan changed");
@@ -121,6 +135,14 @@ export default function RideStatus({ ride, onComplete }) {
   useEffect(() => {
     setCurrentRide(ride || null);
   }, [ride]);
+
+  useEffect(() => {
+    if (!currentRide?.id) {
+      setBookingConfirmation(null);
+      return;
+    }
+    setBookingConfirmation(readRideBookingConfirmation(currentRide.id));
+  }, [currentRide?.id]);
 
   useEffect(() => {
     if (!ride?.id || !token) {
@@ -232,6 +254,32 @@ export default function RideStatus({ ride, onComplete }) {
       : currentRide.status === "COMPLETED"
         ? 100
         : (normalizedActiveStep / (STATUS_STEPS.length - 1)) * 100;
+  const cancellationPreview = calculateCancellationFeePreview(currentRide);
+  const paymentMeta = paymentStatusMeta(currentRide.paymentStatus);
+  const confirmationItems = [
+    { label: "Ride ID", value: currentRide.id ? `#${currentRide.id}` : "-" },
+    {
+      label: "Payment",
+      value: `${formatPaymentModeLabel(bookingConfirmation?.paymentMode || currentRide.paymentMode)}${
+        paymentMeta.label && paymentMeta.label !== "-" ? ` • ${paymentMeta.label}` : ""
+      }`,
+    },
+    { label: "ETA at booking", value: bookingConfirmation?.etaText || "Awaiting live update" },
+    { label: "Driver preference", value: bookingConfirmation?.preferredDriverName || "Auto-assign" },
+  ];
+  const timelineEntries = STATUS_STEPS.map((step) => {
+    const timestampField = TIMELINE_TIMESTAMP_FIELDS[step.key] || [];
+    const rawTimestamp = timestampField
+      .map((field) => currentRide?.[field])
+      .find((value) => Boolean(value));
+    const timestampLabel = formatRideTimestamp(rawTimestamp);
+
+    return {
+      ...step,
+      timestampLabel,
+    };
+  });
+  const cancelledAtLabel = formatRideTimestamp(currentRide.cancelledAt);
 
   const handleCancelRide = async () => {
     if (!canCancel) {
@@ -301,6 +349,15 @@ export default function RideStatus({ ride, onComplete }) {
         </div>
       )}
 
+      <div className="mt-4 grid gap-3 rounded-2xl border border-slate-200 bg-white/85 p-4 sm:grid-cols-2 lg:grid-cols-4">
+        {confirmationItems.map((item) => (
+          <div key={item.label} className="rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">{item.label}</p>
+            <p className="mt-2 text-sm font-bold text-slate-900">{item.value}</p>
+          </div>
+        ))}
+      </div>
+
       {showDriverTracking && trackingPoint.hasLiveGps && (
         <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
           <div className="flex items-center justify-between gap-2">
@@ -344,7 +401,7 @@ export default function RideStatus({ ride, onComplete }) {
         </div>
 
         <div className="mt-3 grid gap-2 sm:grid-cols-4">
-          {STATUS_STEPS.map((step, index) => {
+          {timelineEntries.map((step, index) => {
             const isComplete = currentRide.status === "COMPLETED" || index < timelineActiveStep;
             const isActive = !isCancelled && currentRide.status !== "COMPLETED" && index === timelineActiveStep;
 
@@ -374,10 +431,24 @@ export default function RideStatus({ ride, onComplete }) {
                 <p className={`text-sm font-semibold ${isComplete || isActive ? "text-slate-900" : "text-slate-400"}`}>
                   {step.label}
                 </p>
+                <p className={`text-xs ${step.timestampLabel ? "text-slate-600" : "text-slate-400"}`}>
+                  {step.timestampLabel || (isActive ? "In progress" : "Pending")}
+                </p>
               </MotionDiv>
             );
           })}
         </div>
+        {isCancelled && (
+          <div className="mt-3 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-800">
+            <p className="font-semibold">Ride cancelled</p>
+            <p className="mt-1">
+              {cancelledAtLabel ? `Cancelled at ${cancelledAtLabel}.` : "Cancellation time is being synced."}
+            </p>
+            {currentRide.cancellationReason && (
+              <p className="mt-1">Reason: {currentRide.cancellationReason}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:grid-cols-2">
@@ -391,7 +462,7 @@ export default function RideStatus({ ride, onComplete }) {
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Fare</p>
-          <p className="mt-1 text-sm font-semibold text-slate-900">INR {Number(currentRide.fare || 0).toFixed(0)}</p>
+          <p className="mt-1 text-sm font-semibold text-slate-900">INR {formatInr(currentRide.fare || 0)}</p>
         </div>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Status</p>
@@ -406,7 +477,7 @@ export default function RideStatus({ ride, onComplete }) {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Cancellation fee</p>
               <p className="mt-1 text-sm font-semibold text-slate-900">
-                INR {Number(currentRide.cancellationFee || 0).toFixed(0)}
+                INR {formatInr(currentRide.cancellationFee || 0)}
               </p>
             </div>
           </>
@@ -416,6 +487,15 @@ export default function RideStatus({ ride, onComplete }) {
       {canCancel && (
         <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 p-4">
           <p className="text-sm font-bold text-rose-800">Cancel ride</p>
+          <div className="mt-3 rounded-xl border border-rose-200 bg-white/90 px-3 py-3">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-rose-500">If you cancel now</p>
+            <p className="mt-1 text-lg font-bold text-rose-900">INR {formatInr(cancellationPreview)}</p>
+            <p className="mt-1 text-xs text-rose-700">
+              {cancellationPreview > 0
+                ? "This matches the current rider cancellation rule for this ride stage."
+                : "No cancellation charge applies at the current stage."}
+            </p>
+          </div>
           <div className="mt-3 grid gap-3 sm:grid-cols-[1fr,auto]">
             <select
               value={cancelReason}
@@ -432,7 +512,7 @@ export default function RideStatus({ ride, onComplete }) {
             </button>
           </div>
           <p className="mt-2 text-xs font-semibold text-rose-700">
-            Cancellation fee rule: REQUESTED INR 0, ACCEPTED 20%, PICKED 40% (with limits).
+            Cancellation fee rule: REQUESTED INR 0, ACCEPTED 20% capped at INR 60, PICKED 40% capped at INR 180.
           </p>
           {cancelError && (
             <p className="mt-2 rounded-xl border border-rose-200 bg-white px-3 py-2 text-sm text-rose-700">{cancelError}</p>

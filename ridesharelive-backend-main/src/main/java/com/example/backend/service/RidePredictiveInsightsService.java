@@ -5,6 +5,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
+import java.util.EnumSet;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
@@ -12,6 +13,7 @@ import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.example.backend.entity.Ride;
 import com.example.backend.repository.RideRepository;
@@ -38,11 +40,16 @@ public class RidePredictiveInsightsService {
         this.clock = clock;
     }
 
+    @Transactional(readOnly = true)
     public PredictiveInsights generateInsights() {
         Instant now = Instant.now(clock);
         ZoneId zoneId = clock.getZone();
         ZonedDateTime nowZoned = now.atZone(zoneId);
-        List<Ride> rides = rideRepository.findAll();
+        List<Ride> rides = rideRepository.findRelevantForPredictiveInsights(
+                EnumSet.of(Ride.Status.REQUESTED, Ride.Status.ACCEPTED, Ride.Status.PICKED),
+                now.minus(Duration.ofDays(HISTORY_DAYS)),
+                now.minus(Duration.ofHours(ACTIVE_DRIVER_LOOKBACK_HOURS))
+        );
 
         int currentOpenRequests = (int) rides.stream()
                 .filter(ride -> ride.getStatus() == Ride.Status.REQUESTED)

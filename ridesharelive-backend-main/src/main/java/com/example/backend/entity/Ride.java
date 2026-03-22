@@ -7,6 +7,8 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Column;
+import jakarta.persistence.Index;
+import jakarta.persistence.Table;
 import java.time.Instant;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -14,6 +16,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Entity
+@Table(
+        name = "rides",
+        indexes = {
+                @Index(name = "idx_ride_rider_created", columnList = "riderId, createdAt"),
+                @Index(name = "idx_ride_driver_created", columnList = "driverId, createdAt"),
+                @Index(name = "idx_ride_status_created", columnList = "status, createdAt"),
+                @Index(name = "idx_ride_accepted_at", columnList = "acceptedAt"),
+                @Index(name = "idx_ride_driver_location_updated_at", columnList = "driverLocationUpdatedAt")
+        }
+)
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -39,6 +51,9 @@ public class Ride {
     private String endOtp;
     private Instant createdAt;
     private Instant acceptedAt;
+    private Instant pickedAt;
+    private Instant completedAt;
+    private Instant cancelledAt;
 
     private Double driverLat;
     private Double driverLon;

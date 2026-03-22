@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Client } from "@stomp/stompjs";
 import { AnimatePresence, motion } from "motion/react";
 import Velocity from "velocity-animate";
@@ -9,6 +9,7 @@ const OPEN_EASING = [0.22, 1, 0.36, 1];
 const CLOSE_EASING = [0.4, 0, 1, 1];
 const WS_BASE = (import.meta.env.VITE_WS_BASE_URL || API_BASE_URL).trim().replace(/\/+$/, "");
 const WS_BROKER_URL = `${WS_BASE.replace(/^http/i, "ws")}/ws`;
+const WS_ENABLED = import.meta.env.VITE_ENABLE_NOTIFICATIONS_WS !== "false";
 const MotionDiv = motion.div;
 
 function formatTime(value) {
@@ -69,6 +70,7 @@ export default function NotificationCenter({ token = "" }) {
   const [unreadCount, setUnreadCount] = useState(0);
   const [error, setError] = useState("");
   const [endpointPrefix, setEndpointPrefix] = useState("");
+  const [socketConnected, setSocketConnected] = useState(false);
   const [liveToast, setLiveToast] = useState(null);
   const [pulseUnreadBadge, setPulseUnreadBadge] = useState(false);
   const containerRef = useRef(null);
@@ -237,16 +239,23 @@ export default function NotificationCenter({ token = "" }) {
 
   useEffect(() => {
     fetchNotifications();
-    const intervalId = setInterval(fetchNotifications, 45000);
-    return () => clearInterval(intervalId);
   }, [fetchNotifications]);
 
   useEffect(() => {
-    if (!token) {
+    if (!token || (WS_ENABLED && socketConnected)) {
+      return undefined;
+    }
+    const intervalId = setInterval(fetchNotifications, 60000);
+    return () => clearInterval(intervalId);
+  }, [fetchNotifications, socketConnected, token]);
+
+  useEffect(() => {
+    if (!token || !WS_ENABLED) {
       if (stompClientRef.current) {
         stompClientRef.current.deactivate();
         stompClientRef.current = null;
       }
+      setSocketConnected(false);
       return undefined;
     }
 
@@ -264,6 +273,7 @@ export default function NotificationCenter({ token = "" }) {
 
     client.onConnect = () => {
       setError("");
+      setSocketConnected(true);
       client.subscribe("/user/queue/notifications", (frame) => {
         try {
           handleSocketPayload(JSON.parse(frame.body));
@@ -274,17 +284,24 @@ export default function NotificationCenter({ token = "" }) {
     };
 
     client.onWebSocketError = () => {
+      setSocketConnected(false);
       // Keep the REST fallback active; avoid noisy UI for transient socket issues.
     };
 
     client.onStompError = () => {
+      setSocketConnected(false);
       // Keep the REST fallback active; avoid replacing the current data with an error state.
+    };
+
+    client.onWebSocketClose = () => {
+      setSocketConnected(false);
     };
 
     client.activate();
     stompClientRef.current = client;
 
     return () => {
+      setSocketConnected(false);
       if (client) {
         client.deactivate();
       }
@@ -465,8 +482,6 @@ export default function NotificationCenter({ token = "" }) {
     }
   };
 
-  const buttonLabel = useMemo(() => "Notifications", []);
-
   if (!token) {
     return null;
   }
@@ -487,7 +502,7 @@ export default function NotificationCenter({ token = "" }) {
         aria-expanded={open}
         aria-haspopup="true"
       >
-        <span>{buttonLabel}</span>
+        <span>Notifications</span>
         {unreadCount > 0 ? (
           <span className={`notification-count-badge ${pulseUnreadBadge ? "pulse-once" : ""}`}>
             {unreadCount > 99 ? "99+" : unreadCount}
@@ -533,13 +548,28 @@ export default function NotificationCenter({ token = "" }) {
               </button>
             </div>
           </div>
-          {loading && <p className="mt-2 text-xs text-slate-500">Loading...</p>}
           {error && (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600">{error}</p>
           )}
           <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1" ref={listRef} data-notification-list="1">
-            {notifications.length === 0 ? (
-              <p className="text-sm text-slate-500">No notifications yet.</p>
+            {loading ? (
+              [0, 1, 2].map((item) => (
+                <div key={item} className="rounded-xl border border-slate-200 bg-slate-50/80 p-3" aria-hidden="true">
+                  <div className="h-3 w-24 rounded-full bg-slate-200" />
+                  <div className="mt-3 h-3 rounded-full bg-slate-200/80" />
+                  <div className="mt-2 h-3 w-4/5 rounded-full bg-slate-200/70" />
+                </div>
+              ))
+            ) : notifications.length === 0 ? (
+              <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/80 px-4 py-5 text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Notification center</p>
+                <p className="mt-2 text-sm font-semibold text-slate-800">No notifications yet</p>
+                <p className="mt-2 text-xs leading-5 text-slate-500">
+                  {socketConnected
+                    ? "Live updates are connected. New ride and payment events will land here."
+                    : "Live sync is idle. Refresh or send a test notification to check delivery."}
+                </p>
+              </div>
             ) : (
               notifications.map((notification) => (
                 <article

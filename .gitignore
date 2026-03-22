@@ -3,3 +3,6 @@ Ride-Share-main/
 ridesharelive-backend-main/data/
 ridesharelive-backend-main/*.log
 ridesharelive-frontend-main/*.err
+.logs/
+
+.vercel
