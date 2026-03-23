@@ -198,7 +198,7 @@ export async function apiRequest(path, method = "GET", body = null, token = null
 
   const payload = await readResponseBody(response);
   if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && Boolean(headers.Authorization)) {
+    if (response.status === 401 && Boolean(headers.Authorization)) {
       const detailMessage =
         typeof payload === "string" && payload.trim()
           ? payload.trim()
@@ -209,7 +209,7 @@ export async function apiRequest(path, method = "GET", body = null, token = null
         status: response.status,
         path: cleanedPath,
         message: detailMessage,
-        reason: response.status === 401 ? "unauthorized" : "forbidden",
+        reason: "unauthorized",
       });
       const sessionError = new Error("Session expired. Please login again.");
       sessionError.status = response.status;

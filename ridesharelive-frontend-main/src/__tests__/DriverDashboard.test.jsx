@@ -49,4 +49,45 @@ describe("DriverDashboard", () => {
       );
     });
   });
+
+  it("keeps the accepted ride visible when the follow-up refresh partially fails", async () => {
+    localStorage.setItem("token", "driver-token");
+    localStorage.setItem("userId", "22");
+    localStorage.setItem("name", "Driver Test");
+
+    const requestedRide = {
+      id: 11,
+      pickupLocation: "Kondapur",
+      dropLocation: "Hitech City",
+      fare: 150,
+      paymentMode: "CASH",
+      status: "REQUESTED",
+      driverId: null,
+    };
+
+    const acceptedRide = {
+      ...requestedRide,
+      status: "ACCEPTED",
+      driverId: 22,
+      startOtp: "1234",
+      endOtp: "5678",
+    };
+
+    apiRequest
+      .mockResolvedValueOnce([requestedRide])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce(acceptedRide)
+      .mockRejectedValueOnce(new Error("Temporary refresh failure"))
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({});
+
+    render(<DriverDashboard />);
+
+    const acceptButton = await screen.findByRole("button", { name: /accept/i });
+    await userEvent.click(acceptButton);
+
+    expect(await screen.findByPlaceholderText(/enter rider pickup otp/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /mark picked/i })).toBeInTheDocument();
+  });
 });

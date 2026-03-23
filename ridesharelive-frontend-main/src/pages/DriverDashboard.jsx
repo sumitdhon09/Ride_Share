@@ -201,9 +201,21 @@ export default function DriverDashboard() {
       const myCompletedHistory = historyList.filter(
         (ride) => ride.driverId && myUserId && String(ride.driverId) === String(myUserId)
       );
+      const shouldUseDemoFallback =
+        import.meta.env.DEV &&
+        activeResult.status === "fulfilled" &&
+        historyResult.status === "fulfilled" &&
+        activeList.length === 0 &&
+        myCompletedHistory.length === 0;
 
-      setActiveRides(activeList.length > 0 ? activeList : buildDummyRides());
-      setMyHistory(myCompletedHistory.length > 0 ? myCompletedHistory : buildDummyCompletedHistory(myUserId));
+      if (activeResult.status === "fulfilled") {
+        setActiveRides(shouldUseDemoFallback ? buildDummyRides() : activeList);
+      }
+
+      if (historyResult.status === "fulfilled") {
+        setMyHistory(shouldUseDemoFallback ? buildDummyCompletedHistory(myUserId) : myCompletedHistory);
+      }
+
       setPredictiveInsights(insightsResult.status === "fulfilled" ? insightsResult.value : null);
     } catch (requestError) {
       setPredictiveInsights(null);
@@ -212,6 +224,50 @@ export default function DriverDashboard() {
       setLoading(false);
     }
   }, [myUserId, token]);
+
+  const mergeRideUpdate = useCallback(
+    (updatedRide) => {
+      if (!updatedRide || updatedRide.id === undefined || updatedRide.id === null) {
+        return;
+      }
+
+      const rideId = String(updatedRide.id);
+      const isClosedRide = updatedRide.status === "COMPLETED" || updatedRide.status === "CANCELLED";
+      const belongsToDriver =
+        updatedRide.driverId !== undefined &&
+        updatedRide.driverId !== null &&
+        myUserId &&
+        String(updatedRide.driverId) === String(myUserId);
+
+      setActiveRides((previous) => {
+        const alreadyPresent = previous.some((ride) => String(ride.id) === rideId);
+
+        if (isClosedRide) {
+          return previous.filter((ride) => String(ride.id) !== rideId);
+        }
+
+        if (!alreadyPresent) {
+          return [updatedRide, ...previous];
+        }
+
+        return previous.map((ride) => (String(ride.id) === rideId ? { ...ride, ...updatedRide } : ride));
+      });
+
+      if (!belongsToDriver) {
+        return;
+      }
+
+      setMyHistory((previous) => {
+        if (!isClosedRide) {
+          return previous.map((ride) => (String(ride.id) === rideId ? { ...ride, ...updatedRide } : ride));
+        }
+
+        const nextHistory = previous.filter((ride) => String(ride.id) !== rideId);
+        return [updatedRide, ...nextHistory];
+      });
+    },
+    [myUserId]
+  );
 
   useEffect(() => {
     fetchRides();
@@ -317,7 +373,8 @@ export default function DriverDashboard() {
           status === "ACCEPTED"
             ? { status, driverId: myUserId }
             : { status, otp: (otp || "").trim() };
-        await apiRequest(`/rides/status/${ride.id}`, "POST", payload, token);
+        const updatedRide = await apiRequest(`/rides/status/${ride.id}`, "POST", payload, token);
+        mergeRideUpdate(updatedRide);
         setOtpByRide((previous) => ({ ...previous, [ride.id]: "" }));
         await fetchRides();
       } catch (requestError) {
@@ -326,7 +383,7 @@ export default function DriverDashboard() {
         setBusyRideId(null);
       }
     },
-    [availabilityMode, fetchRides, myUserId, token]
+    [availabilityMode, fetchRides, mergeRideUpdate, myUserId, token]
   );
 
   const shareDriverLocation = useCallback(
@@ -418,7 +475,8 @@ export default function DriverDashboard() {
       setBusyRideId(ride.id);
       setError("");
       try {
-        await apiRequest(`/rides/cancel/${ride.id}`, "POST", { reason }, token);
+        const cancelledRide = await apiRequest(`/rides/cancel/${ride.id}`, "POST", { reason }, token);
+        mergeRideUpdate(cancelledRide);
         await fetchRides();
       } catch (requestError) {
         setError(requestError.message || "Unable to cancel ride.");
@@ -426,7 +484,7 @@ export default function DriverDashboard() {
         setBusyRideId(null);
       }
     },
-    [cancelReasonByRide, fetchRides, myUserId, token]
+    [cancelReasonByRide, fetchRides, mergeRideUpdate, myUserId, token]
   );
 
   const stats = useMemo(() => {
