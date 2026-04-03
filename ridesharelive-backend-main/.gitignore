@@ -32,3 +32,6 @@ build/
 ### VS Code ###
 .vscode/
 .env.smtp.local
+.env.production.ready
+.env.production.local
+.env
