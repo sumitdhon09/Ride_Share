@@ -582,7 +582,7 @@ export default function BookingPanel({
     <form onSubmit={handleSubmit}>
       <BookingLayout
         leftContent={
-          <div className="space-y-6">
+          <div className="space-y-5">
             {activeStep === "location" ? (
               <LocationStep
                 pickup={pickup}
@@ -655,24 +655,17 @@ export default function BookingPanel({
                 transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
                 className="rounded-[1.75rem] bg-slate-50 p-5"
               >
-                <p className="text-sm font-semibold text-slate-500">Review</p>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="grid gap-3 sm:grid-cols-2">
                   <div className="rounded-2xl bg-white px-4 py-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Route</p>
                     <p className="mt-2 text-base font-semibold text-slate-900">
                       {pickup || "Pickup"} to {drop || "Drop"}
                     </p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {distanceKm ? `${distanceKm.toFixed(1)} km` : "Route ready"} {etaText ? `• ${etaText}` : ""}
-                    </p>
+                    {distanceKm || etaText ? <p className="mt-1 text-sm text-slate-500">{distanceKm ? `${distanceKm.toFixed(1)} km` : ""}{distanceKm && etaText ? " • " : ""}{etaText || ""}</p> : null}
                   </div>
                   <div className="rounded-2xl bg-white px-4 py-4">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Booking</p>
                     <p className="mt-2 text-base font-semibold text-slate-900">{rideLabel}</p>
-                    <p className="mt-1 text-sm text-slate-500">
-                      {paymentMode === "CASH" ? "Cash on drop" : `${paymentMode} before pickup`}
-                    </p>
-                    <p className="mt-1 text-sm text-slate-500">{roundTripEnabled ? "Round trip enabled" : currentRideCard?.eta || "ETA soon"}</p>
                     <motion.p
                       key={`confirm-fare-${displayFareEstimate || 0}`}
                       initial={{ opacity: 0, y: 6 }}
@@ -740,7 +733,6 @@ export default function BookingPanel({
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-2xl bg-slate-50 px-3 py-3">
                     <p className="mt-1 font-semibold text-slate-900">{rideLabel}</p>
-                    <p className="mt-1 text-xs text-slate-500">{currentRideCard?.eta || "ETA soon"}{currentRideCard?.seats ? ` • ${currentRideCard.seats} seats` : ""}</p>
                   </div>
                   <div className="rounded-2xl bg-slate-50 px-3 py-3">
                     <p className="mt-1 font-semibold text-slate-900">{paymentMode === "CASH" ? "Cash" : paymentMode}</p>
@@ -757,7 +749,6 @@ export default function BookingPanel({
                 </div>
               </div>
               <div className="mt-4 flex items-center justify-between">
-                <p className="text-sm text-slate-500">{roundTripEnabled ? "Round trip fare applied." : mapPinMode ? "Tap map to pin exact stop." : "Route summary."}</p>
                 {mapPinMode ? <button type="button" onClick={() => setMapPinMode(false)} className="rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700">Done</button> : null}
               </div>
             </motion.div>

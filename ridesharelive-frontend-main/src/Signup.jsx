@@ -84,9 +84,9 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
     ...labels,
   };
   const roleCards = [
-    { value: "RIDER", label: copy.rider, hint: "Request rides quickly" },
-    { value: "DRIVER", label: copy.driver, hint: "Go online and accept rides" },
-    ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: copy.admin, hint: "Staff access and platform ops" }] : []),
+    { value: "RIDER", label: copy.rider },
+    { value: "DRIVER", label: copy.driver },
+    ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: copy.admin }] : []),
   ];
 
   const handleRequestOtp = async () => {
@@ -157,7 +157,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
   }, [defaultRole]);
 
   return (
-    <form onSubmit={handleSubmit} className="auth-form">
+    <form onSubmit={handleSubmit} className="auth-form auth-form--signup">
       <div className="auth-field">
         <label className="auth-field__label" htmlFor="signup-name">
           {copy.fullName}
@@ -203,7 +203,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         />
       </div>
 
-      <div className="auth-utility-card">
+      <div className="auth-utility-card auth-utility-card--otp">
         <button
           type="button"
           className="auth-otp-action"
@@ -212,9 +212,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         >
           {otpLoading ? copy.otpLoading : otpRequested ? copy.otpResendAction : copy.otpAction}
         </button>
-        <span className="auth-otp-helper">
-          {otpRequested ? copy.otpSentSuccess : copy.otpRequired}
-        </span>
       </div>
 
       <div className="auth-field">
@@ -242,7 +239,10 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         {loading ? copy.createAccountLoading : copy.createAccountAction}
       </button>
 
-      <div className="auth-role-grid" aria-label={copy.role}>
+      <div
+        className={`auth-role-grid auth-role-grid--signup ${roleCards.length > 2 ? "auth-role-grid--triple" : ""}`}
+        aria-label={copy.role}
+      >
         {roleCards.map((item) => (
           <button
             key={item.value}
@@ -253,7 +253,6 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
             <span className="auth-role-card__badge">{getRoleBadge(item.value)}</span>
             <span className="auth-role-card__copy">
               <strong>{item.label}</strong>
-              <small>{item.hint}</small>
             </span>
           </button>
         ))}

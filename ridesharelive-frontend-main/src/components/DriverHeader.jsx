@@ -26,14 +26,10 @@ export default function DriverHeader({
             {String(driverName || "D").slice(0, 1)}
           </div>
           <div>
-            <p className={`text-[11px] font-semibold uppercase tracking-[0.24em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Driver workspace</p>
-            <h1 className={`mt-1 text-2xl font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>Welcome back, {driverName}</h1>
+            <h1 className={`text-2xl font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>Welcome back, {driverName}</h1>
             <div className="mt-2 flex flex-wrap gap-2">
               <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-700 bg-slate-900 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                 {vehicleLabel}
-              </span>
-              <span className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
-                OTP verified ride
               </span>
             </div>
           </div>

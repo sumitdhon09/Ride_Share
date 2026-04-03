@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { apiRequest } from "../api";
 import BookingPanel from "../components/BookingPanel";
 import LiveUpdateToast from "../components/LiveUpdateToast";
@@ -12,36 +12,35 @@ function sortByNewest(left, right) {
   return rightTime - leftTime;
 }
 
-function ActivityButton({ onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:-translate-y-0.5 hover:shadow-sm"
-    >
-      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8">
-        <path d="M10 5.5v4.5l3 1.8" strokeLinecap="round" strokeLinejoin="round" />
-        <circle cx="10" cy="10" r="6.5" />
-      </svg>
-      Activity
-    </button>
-  );
+function getDayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) {
+    return "Good Morning";
+  }
+  if (hour < 17) {
+    return "Good Afternoon";
+  }
+  return "Good Evening";
 }
 
 export default function UserDashboard({ session }) {
   const token = localStorage.getItem("token") || session?.token || "";
+  const riderName = localStorage.getItem("name") || session?.name || "Passenger";
+  const greeting = getDayGreeting();
   const previousRideCountRef = useRef(0);
   const initializedRef = useRef(false);
   const [liveToast, setLiveToast] = useState(null);
   const [currentLocation, setCurrentLocation] = useState(null);
   const [rides, setRides] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [theme, setTheme] = useState(() => (document.documentElement.dataset.theme === "dark-theme" ? "dark" : "light"));
-  const [activityOpen, setActivityOpen] = useState(false);
 
   const fetchRides = useCallback(async () => {
     if (!token) {
+      setLoading(false);
       return;
     }
+    setLoading(true);
     try {
       const response = await apiRequest("/rides/history", "GET", null, token);
       const nextRides = Array.isArray(response) ? response : [];
@@ -57,6 +56,8 @@ export default function UserDashboard({ session }) {
       previousRideCountRef.current = nextRides.length;
     } catch (requestError) {
       return requestError;
+    } finally {
+      setLoading(false);
     }
   }, [token]);
 
@@ -93,7 +94,7 @@ export default function UserDashboard({ session }) {
   return (
     <section className="dashboard-view">
       <LiveUpdateToast toast={liveToast} />
-      <div className="mx-auto max-w-7xl space-y-5 px-1 pb-8">
+      <div className="mx-auto max-w-7xl space-y-4 px-1 pb-8">
         <motion.header
           initial={{ opacity: 0, y: 18 }}
           animate={{ opacity: 1, y: 0 }}
@@ -101,14 +102,13 @@ export default function UserDashboard({ session }) {
           className="rounded-[1.75rem] border border-slate-200 bg-white px-5 py-4 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.14)] sm:px-6"
         >
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-[2rem] font-black tracking-tight text-slate-950">Ride</h1>
-              <span className="inline-flex rounded-full bg-slate-100 px-4 py-2 text-sm font-semibold text-slate-700">
-                Book a ride
-              </span>
+            <div>
+              <p className="text-sm font-semibold text-slate-500">
+                {greeting}, {String(riderName).trim()}
+              </p>
+              <h1 className="mt-1 text-[2rem] font-black tracking-tight text-slate-950">Your journey starts here</h1>
             </div>
             <div className="flex flex-wrap items-center gap-2">
-              <ActivityButton onClick={() => setActivityOpen(true)} />
               <div className="grid h-10 w-10 place-items-center rounded-full border border-slate-200 bg-slate-50 text-sm font-semibold text-slate-700">
                 {String(localStorage.getItem("name") || "P").slice(0, 1)}
               </div>
@@ -116,48 +116,37 @@ export default function UserDashboard({ session }) {
           </div>
         </motion.header>
 
-        <motion.div key="ride-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-          <BookingPanel onBooked={fetchRides} currentLocation={currentLocation} onCurrentLocationChange={setCurrentLocation} theme={theme} />
-        </motion.div>
+        {loading ? (
+          <div className="grid gap-4 xl:grid-cols-[minmax(0,1.28fr)_minmax(320px,0.72fr)]">
+            <section className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.14)]">
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="loading-shimmer h-12 rounded-[1rem]" />
+                <div className="loading-shimmer h-12 rounded-[1rem]" />
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {Array.from({ length: 3 }).map((_, index) => (
+                  <div key={`ride-option-skeleton-${index}`} className="loading-shimmer h-24 rounded-[1.25rem]" />
+                ))}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <div className="loading-shimmer h-11 w-36 rounded-full" />
+              </div>
+            </section>
+            <aside className="rounded-[1.75rem] border border-slate-200 bg-white p-5 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.14)]">
+              <div className="loading-shimmer h-5 w-24 rounded-full" />
+              <div className="mt-4 loading-shimmer h-14 rounded-[1.1rem]" />
+              <div className="mt-3 loading-shimmer h-14 rounded-[1.1rem]" />
+              <div className="mt-4 loading-shimmer h-36 rounded-[1.25rem]" />
+            </aside>
+          </div>
+        ) : (
+          <motion.div key="ride-tab" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <BookingPanel onBooked={fetchRides} currentLocation={currentLocation} onCurrentLocationChange={setCurrentLocation} theme={theme} />
+          </motion.div>
+        )}
 
         {activeRide ? <RideStatus ride={activeRide} onComplete={fetchRides} /> : null}
-
-        <AnimatePresence>
-          {activityOpen ? (
-            <>
-              <motion.button
-                type="button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={() => setActivityOpen(false)}
-                className="fixed inset-0 z-40 bg-slate-950/30 backdrop-blur-[2px]"
-              />
-              <motion.aside
-                initial={{ opacity: 0, x: 28 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 24 }}
-                transition={{ duration: 0.22 }}
-                className="fixed right-4 top-4 z-50 h-[calc(100vh-2rem)] w-[min(440px,calc(100vw-2rem))] overflow-auto rounded-[2rem] border border-slate-200 bg-white p-5 shadow-[0_30px_90px_-35px_rgba(15,23,42,0.35)]"
-              >
-                <div className="mb-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-xl font-bold text-slate-950">Recent activity</h2>
-                    <p className="mt-1 text-sm text-slate-500">Latest rides and updates.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActivityOpen(false)}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-sm font-semibold text-slate-700"
-                  >
-                    Close
-                  </button>
-                </div>
-                <RideHistory rides={orderedRides} title="Recent rides" emptyMessage="No rides yet." autoRefresh={false} />
-              </motion.aside>
-            </>
-          ) : null}
-        </AnimatePresence>
+        <RideHistory rides={orderedRides} title="Recent rides" emptyMessage="No rides yet." autoRefresh={false} loadingOverride={loading} />
       </div>
     </section>
   );

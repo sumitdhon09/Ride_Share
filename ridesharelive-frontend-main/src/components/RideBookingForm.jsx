@@ -421,11 +421,11 @@ export default function RideBookingForm({
   };
 
   return (
-    <section className="glass-panel map-motion-panel p-6 sm:p-8">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <section className="glass-panel map-motion-panel px-6 pb-6 pt-4 sm:px-8 sm:pb-8 sm:pt-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Book a ride</p>
-          <h2 className="mt-2 text-2xl font-bold text-slate-900">Where do you want to go?</h2>
+          <h2 className="mt-1 text-2xl font-bold text-slate-900">Where do you want to go?</h2>
         </div>
         <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-700">
           {fareLoading ? "Calculating fare..." : `Simple estimate ${etaText ? `| ETA ${etaText}` : ""}`}

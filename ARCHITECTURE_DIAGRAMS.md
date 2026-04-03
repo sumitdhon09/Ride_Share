@@ -4,16 +4,15 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        RideShare Backend (Spring Boot)                   │
+│                        RideShare Backend (Spring Boot)                  │
 ├─────────────────────────────────────────────────────────────────────────┤
-│                                                                           │
+│                                                                         │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │                     AuthController                               │   │
-│  │  POST /auth/signup/request-otp                                  │   │
-│  │  POST /auth/signup                                              │   │
+│  │  POST /auth/signup/request-otp                                   │   │
 │  └────────────────────────┬─────────────────────────────────────────┘   │
-│                           │                                              │
-│                           ▼                                              │
+│                           │                                             │
+│                           ▼                                             │
 │  ┌──────────────────────────────────────────────────────────────────┐   │
 │  │                  SignupOtpService                                │   │
 │  │  ┌─ Generates 6-digit OTP                                        │   │
@@ -26,11 +25,11 @@
 │       "resend"                         "smtp"                           │
 │           │                                │                            │
 │           ▼                                ▼                            │
-│  ┌──────────────────────┐    ┌──────────────────────────┐              │
-│  │ ResendOtpEmail      │    │ OtpEmailService         │              │
-│  │ Service (NEW)       │    │ (Existing - Fallback)   │              │
-│  │                      │    │                          │              │
-│  │ ├─ API Key mgmt     │    │ ├─ Gmail SMTP           │              │
+│  ┌──────────────────────┐    ┌──────────────────────────┐               │
+│  │ ResendOtpEmail      │    │ OtpEmailService           │               │
+│  │ Service (NEW)       │    │ (Existing - Fallback)      │              │
+│  │                      │    │                           │              │
+│  │ ├─ API Key mgmt     │    │ ├─ Gmail SMTP              │              │
 │  │ ├─ HTML templates   │    │ └─ Traditional email    │              │
 │  │ └─ Error handling   │    │                          │              │
 │  └────────┬────────────┘    └────────┬─────────────────┘              │
@@ -292,36 +291,36 @@ T=5:00 ──→ If no verification:
 ## Code Flow Diagram
 
 ```java
-AuthController.requestSignupOtp()
-    ↓
-SignupOtpService.issueOtp()
-    ├─ Check if enabled
-    ├─ Check rate limiting
-    ├─ Generate OTP
-    ├─ Store OTP with TTL
-    │
-    └─ Check MAIL_PROVIDER
-        ├─ "resend" → ResendOtpEmailService.sendSignupOtpEmail()
-        │              ├─ Check API key configured
-        │              ├─ Create Resend client
-        │              ├─ Build email
-        │              └─ Call Resend API
-        │
-        └─ else → OtpEmailService.sendSignupOtpEmail()
-                   ├─ Check SMTP configured
-                   ├─ Create MIME message
-                   ├─ Set content
-                   └─ Send via JavaMailSender
-    
-    ↓
-Returns MailDeliveryResult
-    ├─ sent: true/false
-    └─ message: success/error description
-    
-    ↓
-AuthController returns HTTP response
-    ├─ 200 OK: Email sent
-    └─ 4xx/5xx: Error with message
+//AuthController.requestSignupOtp()
+//    ↓
+//SignupOtpService.issueOtp()
+//    ├─ Check if enabled
+//    ├─ Check rate limiting
+//    ├─ Generate OTP
+//    ├─ Store OTP with TTL
+//    │
+//    └─ Check MAIL_PROVIDER
+//        ├─ "resend" → ResendOtpEmailService.sendSignupOtpEmail()
+//        │              ├─ Check API key configured
+//        │              ├─ Create Resend client
+//        │              ├─ Build email
+//        │              └─ Call Resend API
+//        │
+//        └─ else → OtpEmailService.sendSignupOtpEmail();
+//                   ├─ Check SMTP configured
+//                   ├─ Create MIME message
+//                   ├─ Set content
+//                   └─ Send via JavaMailSender
+//    
+//    ↓
+//Returns MailDeliveryResult
+//    ├─ sent: true/false
+//    └─ message: success/error description
+//    
+//    ↓
+//AuthController returns HTTP response
+//    ├─ 200 OK: Email sent
+//    └─ 4xx/5xx: Error with message`
 ```
 
 ---

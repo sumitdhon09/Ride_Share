@@ -28,6 +28,7 @@ export default function RideHistory({
   emptyMessage = "No rides found yet.",
   autoRefresh = true,
   intervalMs = 12000,
+  loadingOverride = false,
 }) {
   const hasExternalData = Array.isArray(rides);
   const token = localStorage.getItem("token") || "";
@@ -64,6 +65,7 @@ export default function RideHistory({
   }, [autoRefresh, fetchRides, hasExternalData, intervalMs]);
 
   const resolvedRides = hasExternalData ? rides : localRides;
+  const showLoading = hasExternalData ? loadingOverride : loading;
   const safeRides = Array.isArray(resolvedRides) ? resolvedRides : [];
   const orderedRides = [...safeRides].sort((left, right) => {
     const leftTime = new Date(left?.createdAt || left?.bookedAt || left?.requestedAt || 0).getTime();
@@ -75,17 +77,41 @@ export default function RideHistory({
     <section className="space-y-4">
       <div>
         <h2 className="text-xl font-bold text-slate-950">{title}</h2>
-        {loading ? <p className="mt-2 text-sm text-slate-500">Loading activity...</p> : null}
+        {showLoading ? <p className="mt-2 text-sm text-slate-500">Loading activity...</p> : null}
         {error ? <p className="mt-2 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-600">{error}</p> : null}
       </div>
 
-      {!loading && !error && orderedRides.length === 0 ? (
+      {!showLoading && !error && orderedRides.length === 0 ? (
         <div className="rounded-[1.4rem] border border-slate-200 bg-slate-50 px-4 py-6 text-sm text-slate-500">
           {emptyMessage}
         </div>
       ) : null}
 
       <div className="space-y-3">
+        {showLoading
+          ? Array.from({ length: 3 }).map((_, index) => (
+              <article
+                key={`ride-skeleton-${index}`}
+                className="rounded-[1.4rem] border border-slate-200 bg-slate-50/80 p-4"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div className="w-full max-w-[18rem] space-y-2">
+                    <div className="loading-shimmer h-5 w-24 rounded-full" />
+                    <div className="loading-shimmer h-4 w-full rounded-lg" />
+                    <div className="loading-shimmer h-4 w-4/5 rounded-lg" />
+                  </div>
+                  <div className="w-24 space-y-2">
+                    <div className="loading-shimmer h-5 w-full rounded-lg" />
+                    <div className="loading-shimmer ml-auto h-4 w-14 rounded-lg" />
+                  </div>
+                </div>
+                <div className="mt-4 flex gap-2">
+                  <div className="loading-shimmer h-7 w-24 rounded-full" />
+                  <div className="loading-shimmer h-7 w-20 rounded-full" />
+                </div>
+              </article>
+            ))
+          : null}
         {orderedRides.map((ride, index) => {
           const paymentMeta = paymentStatusMeta(ride?.paymentStatus);
           const rideStatus = String(ride?.status || "UNKNOWN").toUpperCase();

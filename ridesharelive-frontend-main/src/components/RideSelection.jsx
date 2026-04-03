@@ -1,4 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 
 function formatCurrency(value) {
   return `Rs ${new Intl.NumberFormat("en-IN", { maximumFractionDigits: 0 }).format(Number(value) || 0)}`;
@@ -21,8 +22,25 @@ export default function RideSelection({
   fareEstimate,
   distanceKm,
 }) {
+  const [draggingRideId, setDraggingRideId] = useState(null);
   const currentRide = rides.find((ride) => ride.id === selectedRide) || rides[0] || null;
   const distanceText = formatDistance(distanceKm);
+
+  const handleCardSwipe = (rideId, offsetX) => {
+    const rideIndex = rides.findIndex((ride) => ride.id === rideId);
+    if (rideIndex === -1) {
+      return;
+    }
+    if (offsetX <= -90 && rides[rideIndex + 1]) {
+      onSelect(rides[rideIndex + 1].id);
+      return;
+    }
+    if (offsetX >= 90 && rides[rideIndex - 1]) {
+      onSelect(rides[rideIndex - 1].id);
+      return;
+    }
+    onSelect(rideId);
+  };
 
   return (
     <motion.div
@@ -34,7 +52,6 @@ export default function RideSelection({
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="text-2xl font-bold tracking-tight text-slate-950">Choose a ride</h3>
-          <p className="mt-1 text-sm text-slate-500">Select your vehicle</p>
         </div>
 
         <div className="inline-flex items-center rounded-full border border-slate-200 bg-white p-1 shadow-[0_14px_30px_-24px_rgba(15,23,42,0.16)]">
@@ -69,14 +86,29 @@ export default function RideSelection({
               key={ride.id}
               type="button"
               layout
-              whileHover={{ y: -4 }}
-              whileTap={{ y: -1 }}
+              drag="x"
+              dragConstraints={{ left: 0, right: 0 }}
+              dragElastic={0.16}
+              dragMomentum={false}
+              onDragStart={() => setDraggingRideId(ride.id)}
+              onDragEnd={(_, info) => {
+                setDraggingRideId(null);
+                handleCardSwipe(ride.id, info.offset.x);
+              }}
+              whileHover={{ y: -4, scale: 1.01 }}
+              whileTap={{ y: -1, scale: 0.995 }}
               transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
               onClick={() => onSelect(ride.id)}
               className={`flex min-h-[188px] flex-col rounded-[1.5rem] border px-5 py-5 text-left transition ${
                 selected
                   ? "border-cyan-400 bg-slate-950 text-white shadow-[0_24px_48px_-28px_rgba(8,145,178,0.38)]"
-                  : "border-slate-200 bg-white text-slate-900 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.14)] hover:border-slate-300"
+                  : "border-slate-200 bg-white text-slate-900 shadow-[0_16px_34px_-30px_rgba(15,23,42,0.14)] hover:border-slate-300 hover:shadow-[0_22px_42px_-28px_rgba(15,23,42,0.18)]"
+              } ${
+                draggingRideId === ride.id
+                  ? selected
+                    ? "ring-2 ring-cyan-300/60 shadow-[0_28px_54px_-24px_rgba(8,145,178,0.5)]"
+                    : "border-cyan-200 bg-cyan-50/60 ring-2 ring-cyan-200 shadow-[0_24px_42px_-24px_rgba(8,145,178,0.2)]"
+                  : ""
               }`}
             >
               <div className="flex items-start justify-between gap-3">
@@ -90,7 +122,6 @@ export default function RideSelection({
                   </span>
                   <div>
                     <p className="text-lg font-semibold tracking-tight">{ride.name}</p>
-                    <p className={`mt-1 text-sm ${selected ? "text-slate-300" : "text-slate-500"}`}>{ride.description}</p>
                   </div>
                 </div>
 
@@ -108,9 +139,6 @@ export default function RideSelection({
                   ) : null}
                 </AnimatePresence>
               </div>
-
-              <p className={`mt-4 text-sm ${selected ? "text-slate-400" : "text-slate-500"}`}>{meta}</p>
-
               <div className="mt-auto pt-6">
                 <AnimatePresence mode="wait" initial={false}>
                   <motion.p
@@ -132,6 +160,11 @@ export default function RideSelection({
 
       <motion.div
         layout
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.08}
+        dragMomentum={false}
+        whileHover={{ y: -2, boxShadow: "0 22px 38px -28px rgba(15,23,42,0.18)" }}
         className="rounded-[1.5rem] border border-slate-200 bg-slate-50 px-5 py-4 shadow-[0_16px_34px_-28px_rgba(15,23,42,0.12)]"
       >
         <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current total</p>
@@ -141,7 +174,6 @@ export default function RideSelection({
               {currentRide?.name || "Ride"}
               {distanceText ? ` • ${distanceText}` : ""}
             </p>
-            <p className="mt-1 text-sm text-slate-500">{currentRide?.eta || "ETA soon"}</p>
           </div>
 
           <AnimatePresence mode="wait" initial={false}>

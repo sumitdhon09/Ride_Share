@@ -296,10 +296,10 @@ export default function LiveMapPanel({
     <section className={`glass-panel card-rise live-map-shell live-map-shell--${mapTone} p-4 sm:p-6 ${className}`}>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Explore coverage</p>
-          <h3 className="mt-2 text-2xl font-bold text-slate-900">{title}</h3>
+          <p className="live-map-shell__eyebrow text-xs font-semibold uppercase tracking-[0.2em]">Explore coverage</p>
+          <h3 className="live-map-shell__title mt-2 text-2xl font-bold">{title}</h3>
         </div>
-        <div className="inline-flex items-center rounded-full border border-slate-200 bg-white/80 px-3 py-2 text-sm font-semibold text-slate-600">
+        <div className="live-map-shell__location inline-flex items-center rounded-full border px-3 py-2 text-sm font-semibold">
           {locationLabel}
         </div>
       </div>
@@ -316,7 +316,7 @@ export default function LiveMapPanel({
             }
           }}
           placeholder={copy.searchPlaceholder}
-          className="w-full rounded-2xl border border-sky-200 bg-slate-50 px-4 py-3 text-slate-900 outline-none transition focus:border-sky-300"
+          className="live-map-shell__search w-full rounded-2xl border px-4 py-3 outline-none transition"
         />
         <div className="grid shrink-0 grid-cols-4 gap-2 sm:flex sm:flex-wrap">
           <button type="button" className="live-map-shell__control live-map-shell__control--primary" onClick={handleUseMyLocation} disabled={loading} aria-label={copy.useMyLocation} title={copy.useMyLocation}>
@@ -334,14 +334,14 @@ export default function LiveMapPanel({
         </div>
       </div>
 
-      {error && <p className="mt-3 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-600">{error}</p>}
+      {error && <p className="live-map-shell__error mt-3 rounded-xl border px-3 py-2 text-sm">{error}</p>}
 
       <div className="live-map-shell__frame relative mt-4 overflow-hidden rounded-[1.8rem] border border-sky-200 bg-white">
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 flex flex-wrap gap-2 p-3 sm:p-4">
-          <span className="rounded-full border border-white/60 bg-white/72 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 backdrop-blur">
+          <span className="live-map-shell__tag rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur">
             India only
           </span>
-          <span className="rounded-full border border-white/60 bg-white/72 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 backdrop-blur">
+          <span className="live-map-shell__tag rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] backdrop-blur">
             Search and zoom
           </span>
         </div>
@@ -359,7 +359,7 @@ export default function LiveMapPanel({
           <div className="absolute bottom-4 right-4 overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-lg">
             <button
               type="button"
-              className="grid h-10 w-10 place-items-center border-b border-slate-300 text-xl font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="live-map-shell__zoom-button live-map-shell__zoom-button--top grid h-10 w-10 place-items-center border-b text-xl font-semibold transition"
               onClick={zoomIn}
               aria-label="Zoom in"
             >
@@ -367,7 +367,7 @@ export default function LiveMapPanel({
             </button>
             <button
               type="button"
-              className="grid h-10 w-10 place-items-center text-xl font-semibold text-slate-700 transition hover:bg-slate-100"
+              className="live-map-shell__zoom-button grid h-10 w-10 place-items-center text-xl font-semibold transition"
               onClick={zoomOut}
               aria-label="Zoom out"
             >
@@ -377,7 +377,7 @@ export default function LiveMapPanel({
         )}
       </div>
       {viewMode === "street" && (
-        <p className="mt-2 text-xs text-slate-600">
+        <p className="live-map-shell__note mt-2 text-xs">
           Street View is shown from the nearest mapped road. Coverage depends on Google imagery availability.
         </p>
       )}

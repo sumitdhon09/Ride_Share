@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { motion } from "motion/react";
 import { apiRequest } from "../api";
 import ActiveTripCard from "../components/ActiveTripCard";
 import DriverHeader from "../components/DriverHeader";
@@ -60,7 +61,83 @@ const FALLBACK_DRIVER_REQUESTS = [
   },
 ];
 const demoDriverQueueEnabled =
-  String(import.meta.env.VITE_ENABLE_DEMO_DRIVER_QUEUE || "").toLowerCase() === "true" || import.meta.env.DEV;
+  String(import.meta.env.VITE_ENABLE_DEMO_DRIVER_QUEUE || "").toLowerCase() === "true";
+
+function DriverDashboardSkeleton({ isDark }) {
+  const cardClass = isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96";
+  const panelClass = isDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200 bg-slate-50";
+
+  return (
+    <div className="space-y-5">
+      <div className={`grid gap-3 rounded-[1.5rem] border px-4 py-4 sm:grid-cols-3 ${cardClass}`}>
+        {Array.from({ length: 3 }).map((_, index) => (
+          <div key={`driver-summary-skeleton-${index}`} className="space-y-2">
+            <div className="loading-shimmer h-3 w-24 rounded-full" />
+            <div className="loading-shimmer h-5 w-40 rounded-lg" />
+          </div>
+        ))}
+      </div>
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.92fr)]">
+        <div className="space-y-5">
+          <div className={`rounded-[1.75rem] border p-5 ${cardClass}`}>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={`status-skeleton-${index}`} className="loading-shimmer h-16 rounded-[1.15rem]" />
+              ))}
+            </div>
+          </div>
+          <div className={`rounded-[1.4rem] border p-4 ${cardClass}`}>
+            <div className="loading-shimmer h-5 w-32 rounded-full" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div key={`queue-skeleton-${index}`} className={`rounded-[1.15rem] border px-4 py-4 ${panelClass}`}>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="w-full max-w-[16rem] space-y-2">
+                      <div className="loading-shimmer h-4 w-full rounded-lg" />
+                      <div className="loading-shimmer h-4 w-4/5 rounded-lg" />
+                    </div>
+                    <div className="loading-shimmer h-6 w-14 rounded-full" />
+                  </div>
+                  <div className="mt-3 flex items-center justify-between gap-3">
+                    <div className="loading-shimmer h-4 w-32 rounded-lg" />
+                    <div className="flex gap-2">
+                      <div className="loading-shimmer h-8 w-20 rounded-full" />
+                      <div className="loading-shimmer h-8 w-20 rounded-full" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <div key={`earnings-skeleton-${index}`} className={`rounded-[1.75rem] border p-5 ${cardClass}`}>
+                <div className="loading-shimmer h-3 w-20 rounded-full" />
+                <div className="mt-3 loading-shimmer h-8 w-24 rounded-lg" />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div className="space-y-5">
+          <div className={`rounded-[1.75rem] border p-5 ${cardClass}`}>
+            <div className="loading-shimmer h-64 rounded-[1.4rem]" />
+          </div>
+          <div className={`rounded-[1.75rem] border p-5 ${cardClass}`}>
+            <div className="loading-shimmer h-5 w-28 rounded-full" />
+            <div className="mt-4 space-y-3">
+              {Array.from({ length: 5 }).map((_, index) => (
+                <div key={`timeline-skeleton-${index}`} className="flex items-center gap-3">
+                  <div className="loading-shimmer h-7 w-7 rounded-full" />
+                  <div className="loading-shimmer h-4 w-36 rounded-lg" />
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function DriverDashboard() {
   const token = localStorage.getItem("token") || "";
@@ -83,6 +160,7 @@ export default function DriverDashboard() {
   const [shiftTick, setShiftTick] = useState(0);
   const [isDark, setIsDark] = useState(() => document.documentElement.dataset.theme === "dark-theme");
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [dismissedRequestIds, setDismissedRequestIds] = useState([]);
 
   useEffect(() => {
     const root = document.documentElement;
@@ -119,6 +197,8 @@ export default function DriverDashboard() {
       } else {
         setError("");
       }
+
+      setDismissedRequestIds([]);
 
       const openCount = activeList.filter((ride) => ride?.status === "REQUESTED" && !ride?.driverId).length;
       if (previousOpenCountRef.current && openCount > previousOpenCountRef.current) {
@@ -197,7 +277,10 @@ export default function DriverDashboard() {
   );
 
   const liveOpenRequests = useMemo(() => activeRides.filter((ride) => ride.status === "REQUESTED" && !ride.driverId), [activeRides]);
-  const openRequests = liveOpenRequests.length ? liveOpenRequests : demoDriverQueueEnabled ? FALLBACK_DRIVER_REQUESTS : [];
+  const openRequests = useMemo(() => {
+    const source = liveOpenRequests.length ? liveOpenRequests : demoDriverQueueEnabled ? FALLBACK_DRIVER_REQUESTS : [];
+    return source.filter((ride) => !dismissedRequestIds.includes(String(ride.id)));
+  }, [dismissedRequestIds, liveOpenRequests]);
   const currentRide = useMemo(() => activeRides.find((ride) => String(ride.driverId) === String(myUserId) && (ride.status === "ACCEPTED" || ride.status === "PICKED")) || null, [activeRides, myUserId]);
   const notifications = useMemo(
     () =>
@@ -242,6 +325,31 @@ export default function DriverDashboard() {
   const shiftMinutes = Math.max(1, Math.round((Date.now() - shiftStartedAtRef.current) / 60000));
   const shiftDuration = `${Math.floor(shiftMinutes / 60)}h ${shiftMinutes % 60}m`;
   const topRequest = openRequests[0] || null;
+  const queuedRequests = openRequests.slice(0, 4);
+
+  const handleRejectRequest = useCallback((request) => {
+    if (!request) {
+      return;
+    }
+    setDismissedRequestIds((previous) => [...new Set([...previous, String(request.id)])]);
+    setActiveRides((previous) => previous.filter((item) => String(item.id) !== String(request.id)));
+    setLiveToast({ id: Date.now(), message: "Ride rejected.", tone: "info" });
+  }, []);
+
+  const handleAcceptRequest = useCallback(
+    async (request) => {
+      if (!request) {
+        return;
+      }
+      if (typeof request.id === "number") {
+        await updateRideStatus(request, "ACCEPTED");
+        return;
+      }
+      setDismissedRequestIds((previous) => [...new Set([...previous, String(request.id)])]);
+    },
+    [updateRideStatus]
+  );
+
   const handleContactRider = useCallback(async () => {
     const riderPhone = currentRide?.riderPhone || currentRide?.phone || "";
     const riderEmail = currentRide?.riderEmail || "";
@@ -271,7 +379,6 @@ export default function DriverDashboard() {
     setLiveToast({ id: Date.now(), message: "Rider contact not available yet.", tone: "info" });
   }, [currentRide]);
   void shiftTick;
-  void loading;
 
   return (
     <section className={isDark ? "min-h-screen bg-[linear-gradient(180deg,#020617_0%,#06111f_100%)] text-slate-100" : "min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] text-slate-900"}>
@@ -304,15 +411,82 @@ export default function DriverDashboard() {
           </div>
         </div>
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.92fr)]">
+        {loading ? <DriverDashboardSkeleton isDark={isDark} /> : null}
+
+        {!loading ? <div className="grid gap-5 xl:grid-cols-[minmax(0,1.6fr)_minmax(340px,0.92fr)]">
           <div className="space-y-5">
             <DriverStatusCard online={availabilityMode === "ONLINE"} currentLocationLabel="Multai live zone" shiftDuration={shiftDuration} autoAssignEnabled={autoAssignEnabled} isDark={isDark} />
             <div className="space-y-3">
-              <RideRequestCard request={topRequest} accepting={busyRideId === topRequest?.id} disabled={availabilityMode !== "ONLINE"} onAccept={() => topRequest && updateRideStatus(topRequest, "ACCEPTED")} onReject={() => { if (!topRequest) return; setActiveRides((previous) => previous.filter((item) => item.id !== topRequest.id)); setLiveToast({ id: Date.now(), message: "Ride rejected.", tone: "info" }); }} isDark={isDark} />
-              <div className={`flex items-center justify-between rounded-[1.2rem] border px-4 py-3 text-sm ${isDark ? "border-slate-800 bg-slate-950/80 text-slate-300" : "border-slate-200 bg-white text-slate-600"}`}>
-                <span>Open requests</span>
-                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isDark ? "bg-cyan-400/10 text-cyan-300" : "bg-sky-50 text-sky-700"}`}>{openRequests.length}</span>
-              </div>
+              <RideRequestCard
+                request={topRequest}
+                accepting={busyRideId === topRequest?.id}
+                disabled={availabilityMode !== "ONLINE"}
+                onAccept={() => topRequest && handleAcceptRequest(topRequest)}
+                onReject={() => handleRejectRequest(topRequest)}
+                isDark={isDark}
+              />
+              <section className={`rounded-[1.4rem] border p-4 ${isDark ? "border-slate-800 bg-slate-950/82" : "border-slate-200 bg-white/96"}`}>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Open requests</p>
+                    <p className={`mt-1 text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}>Live queue for nearby rides</p>
+                  </div>
+                  <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${isDark ? "bg-cyan-400/10 text-cyan-300" : "bg-sky-50 text-sky-700"}`}>{openRequests.length}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {queuedRequests.length ? (
+                    queuedRequests.map((request, index) => (
+                      <motion.div
+                        key={request.id}
+                        initial={{ opacity: 0, y: 14 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.22, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
+                        className={`rounded-[1.15rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/75" : "border-slate-200 bg-slate-50"}`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <p className={`text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}>
+                              {request.pickupLocation}
+                            </p>
+                            <p className={`mt-1 text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                              To {request.dropLocation}
+                            </p>
+                          </div>
+                          <span className={`rounded-full px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] ${index === 0 ? (isDark ? "bg-emerald-400/10 text-emerald-300" : "bg-emerald-50 text-emerald-700") : (isDark ? "bg-slate-800 text-slate-300" : "bg-slate-200 text-slate-700")}`}>
+                            {index === 0 ? "Next" : "Queued"}
+                          </span>
+                        </div>
+                        <div className="mt-3 flex items-center justify-between gap-3">
+                          <div className={`text-xs ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                            {request.distanceKm || 0} km • INR {request.fare} • {request.paymentMode}
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button
+                              type="button"
+                              onClick={() => handleAcceptRequest(request)}
+                              disabled={availabilityMode !== "ONLINE" || busyRideId === request.id}
+                              className="rounded-full bg-[linear-gradient(135deg,#22c55e,#06b6d4)] px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                              {busyRideId === request.id ? "..." : "Accept"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRejectRequest(request)}
+                              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${isDark ? "border-rose-400/20 bg-rose-400/10 text-rose-200" : "border-rose-200 bg-rose-50 text-rose-700"}`}
+                            >
+                              Reject
+                            </button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className={`rounded-[1.15rem] border border-dashed px-4 py-5 text-sm ${isDark ? "border-slate-700 bg-slate-900/50 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+                      No open requests right now.
+                    </div>
+                  )}
+                </div>
+              </section>
             </div>
             <ActiveTripCard ride={currentRide} pickupOtp={pickupOtpByRide[currentRide?.id] || ""} dropOtp={dropOtpByRide[currentRide?.id] || ""} busy={busyRideId === currentRide?.id} onPickupOtpChange={(value) => currentRide && setPickupOtpByRide((previous) => ({ ...previous, [currentRide.id]: value }))} onDropOtpChange={(value) => currentRide && setDropOtpByRide((previous) => ({ ...previous, [currentRide.id]: value }))} onMarkPicked={() => currentRide && updateRideStatus(currentRide, "PICKED", pickupOtpByRide[currentRide.id] || "")} onCompleteRide={() => currentRide && updateRideStatus(currentRide, "COMPLETED", dropOtpByRide[currentRide.id] || "")} onCallRider={handleContactRider} isDark={isDark} />
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -340,9 +514,9 @@ export default function DriverDashboard() {
               </div>
             </div>
           </div>
-        </div>
+        </div> : null}
 
-        <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        {!loading ? <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <RecentTripsTable rides={history} isDark={isDark} />
           <section className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
             <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Earnings summary</p>
@@ -355,7 +529,7 @@ export default function DriverDashboard() {
               ))}
             </div>
           </section>
-        </div>
+        </div> : null}
       </div>
       {notificationsOpen ? (
         <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-950/30 p-4 backdrop-blur-[2px]" onClick={() => setNotificationsOpen(false)}>

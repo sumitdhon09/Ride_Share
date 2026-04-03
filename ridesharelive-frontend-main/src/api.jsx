@@ -168,9 +168,18 @@ export async function apiRequest(path, method = "GET", body = null, token = null
 
   const payload = await readResponseBody(response);
   if (!response.ok) {
-    if ((response.status === 401 || response.status === 403) && Boolean(headers.Authorization)) {
+    if (response.status === 401 && Boolean(headers.Authorization)) {
       clearStoredSession(true);
       throw new Error("Session expired. Please login again.");
+    }
+    if (response.status === 403 && Boolean(headers.Authorization)) {
+      if (typeof payload === "string" && payload.trim()) {
+        throw new Error(payload);
+      }
+      if (payload && typeof payload === "object" && payload.message) {
+        throw new Error(payload.message);
+      }
+      throw new Error("You do not have access to this resource.");
     }
     if (typeof payload === "string" && payload.trim()) {
       throw new Error(payload);

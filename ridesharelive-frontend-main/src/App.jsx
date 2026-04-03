@@ -3,8 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import gsap from "gsap";
 import heroImage from "./assets/1.png";
 import safetyImage from "./assets/2.png";
-import Login from "./Login";
-import Signup from "./Signup";
+import AuthModal from "./components/AuthModal";
 import LiveMapPanel from "./components/LiveMapPanel";
 import NotificationCenter from "./components/NotificationCenter";
 import ThreeBackdrop from "./components/ThreeBackdrop";
@@ -12,6 +11,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import { apiRequest } from "./api";
+import { calculateRideFare, RIDE_OPTIONS } from "./utils/farePricing";
 
 const MotionAside = motion.aside;
 const MotionDiv = motion.div;
@@ -26,11 +26,11 @@ const INITIAL_SESSION = {
 };
 
 const DEFAULT_PREFERENCES = {
-  theme: "urban-transport",
+  theme: "peach-glow",
   language: "en",
   fontScale: 100,
 };
-const AVAILABLE_THEMES = ["urban-transport", "dark-theme"];
+const AVAILABLE_THEMES = ["peach-glow", "dark-theme"];
 const DEFAULT_ADVANCED_SETTINGS = {
   tripSharingDefault: true,
   hidePhoneNumber: false,
@@ -45,11 +45,6 @@ const DEFAULT_ADVANCED_SETTINGS = {
   acPreference: "any",
   quietRide: false,
   deleteAccountRequested: false,
-};
-const VEHICLE_RATES = {
-  bike: 12,
-  mini: 18,
-  sedan: 26,
 };
 const USER_SETTINGS_PREFIXES = ["/user-settings", "/api/user-settings"];
 const FALLBACK_TRANSLATION_LANGUAGE_OPTIONS = [
@@ -193,6 +188,7 @@ const TRANSLATIONS = {
       increase: "A+",
       reset: "Reset",
       themeOptions: {
+        "peach-glow": "Peach Glow Theme",
         "eco-friendly-ride": "Eco-Friendly Ride Theme",
         "dark-theme": "Dark Theme",
         "urban-transport": "Urban Transport Theme",
@@ -231,8 +227,8 @@ const TRANSLATIONS = {
     },
     home: {
       badge: "Real-time mobility",
-      heroTitleA: "Rides that feel instant.",
-      heroTitleB: "Operations that stay calm.",
+      heroTitleA: "Rides that feel",
+      heroTitleB: "instant. Operations that stay calm.",
       heroBody:
         "One app for riders and drivers, designed for speed, clarity, and trust across every trip.",
       heroBookRideCta: "Book a Ride",
@@ -289,6 +285,8 @@ const TRANSLATIONS = {
       riderModeBody: "Book quickly, watch real-time status, and review complete trip history.",
       driverModeTitle: "Driver mode",
       driverModeBody: "Accept demand, update ride milestones, and monitor personal earnings.",
+      adminModeTitle: "Admin mode",
+      adminModeBody: "Oversee riders, drivers, live operations, and platform health from one command center.",
       mapTitle: "Live map",
       mapSearchPlaceholder: "Search or type pickup location",
       mapUseMyLocation: "Use My Location",
@@ -391,6 +389,8 @@ const TRANSLATIONS = {
       riderModeBody: "जल्दी बुक करें, लाइव स्टेटस देखें और पूरी राइड हिस्ट्री पाएं।",
       driverModeTitle: "ड्राइवर मोड",
       driverModeBody: "डिमांड एक्सेप्ट करें, स्टेटस अपडेट करें और कमाई ट्रैक करें।",
+      adminModeTitle: "एडमिन मोड",
+      adminModeBody: "राइडर्स, ड्राइवर्स, लाइव ऑपरेशन्स और पूरे प्लेटफॉर्म की निगरानी एक ही कमांड सेंटर से करें।",
       mapTitle: "लाइव मैप",
       mapSearchPlaceholder: "पिकअप लोकेशन खोजें या टाइप करें",
       mapUseMyLocation: "मेरी लोकेशन",
@@ -416,6 +416,19 @@ function getStoredSession() {
   };
 }
 
+function getAccessibleWorkspaces(role) {
+  if (role === "ADMIN") {
+    return ["user", "driver", "admin"];
+  }
+  if (role === "DRIVER") {
+    return ["user", "driver"];
+  }
+  if (role === "RIDER" || role === "USER") {
+    return ["user"];
+  }
+  return [];
+}
+
 function getDefaultPageForRole(role) {
   if (role === "ADMIN") {
     return "admin";
@@ -423,23 +436,44 @@ function getDefaultPageForRole(role) {
   if (role === "DRIVER") {
     return "driver";
   }
-  if (role === "RIDER" || role === "USER") {
+  const accessibleWorkspaces = getAccessibleWorkspaces(role);
+  if (accessibleWorkspaces.includes("user")) {
     return "user";
   }
-  return "home";
+  return accessibleWorkspaces[0] || "home";
 }
 
 function isPageAllowedForRole(page, role) {
-  if (role === "ADMIN") {
-    return page === "admin";
-  }
-  if (role === "RIDER" || role === "USER") {
-    return page === "user";
-  }
-  if (role === "DRIVER") {
-    return page === "driver";
-  }
-  return page === "home";
+  return getAccessibleWorkspaces(role).includes(page) || page === "home";
+}
+
+function getWorkspaceMeta(role) {
+  const accessibleWorkspaces = getAccessibleWorkspaces(role);
+  return accessibleWorkspaces.map((workspace) => {
+    if (workspace === "user") {
+      return {
+        key: "user",
+        label: "User dashboard",
+        description: "Booking dashboard, ride history, and account tools",
+      };
+    }
+    if (workspace === "driver") {
+      return {
+        key: "driver",
+        label: "Driver workspace",
+        description: "Driver tools and live ride operations",
+      };
+    }
+    return {
+      key: "admin",
+      label: "Admin workspace",
+      description: "Platform controls, approvals, and live analytics",
+    };
+  });
+}
+
+function getSwitchableWorkspaceMeta(role) {
+  return getWorkspaceMeta(role).filter((workspace) => workspace.key !== "user");
 }
 
 function normalizeLanguageCode(languageCode) {
@@ -501,6 +535,47 @@ function clearSessionStorage() {
   localStorage.removeItem("email");
 }
 
+function renderAnimatedWords(text, extraClassName = "") {
+  return String(text || "")
+    .split(" ")
+    .filter(Boolean)
+    .map((word, index) => (
+      <span
+        key={`${word}-${index}`}
+        data-hero-word
+        className={`inline-block pr-[0.22em] ${extraClassName}`.trim()}
+      >
+        {word}
+      </span>
+    ));
+}
+
+function normalizeEstimatorVehicle(vehicle) {
+  if (vehicle === "mini") {
+    return "hatchback";
+  }
+  return vehicle;
+}
+
+function buildFallbackEstimate(distanceKm, vehicle) {
+  const parsedDistance = Number(distanceKm);
+  const normalizedDistance =
+    Number.isFinite(parsedDistance) && parsedDistance > 0 ? parsedDistance : 1;
+  const normalizedVehicle = normalizeEstimatorVehicle(vehicle);
+  const vehicleOption = RIDE_OPTIONS.find((item) => item.id === normalizedVehicle || item.type === normalizedVehicle);
+  const estimatedFare = calculateRideFare(normalizedDistance, normalizedVehicle, false);
+  const baseEta = vehicleOption?.eta ?? 5;
+  const etaMinutes = Math.max(baseEta + Math.round(normalizedDistance * 0.9), baseEta + 2);
+  const fareVariance = Math.max(Math.round(estimatedFare * 0.12), 10);
+
+  return {
+    distance: normalizedDistance.toFixed(1),
+    etaText: `${etaMinutes}-${etaMinutes + 4} min`,
+    fareLow: Math.max(estimatedFare - fareVariance, vehicleOption?.minimumFare ?? 0),
+    fareHigh: estimatedFare + fareVariance,
+  };
+}
+
 function HomeLanding({ onOpenAuth, copy }) {
   const heroRef = useRef(null);
   const [pickup, setPickup] = useState("");
@@ -509,24 +584,7 @@ function HomeLanding({ onOpenAuth, copy }) {
   const [vehicle, setVehicle] = useState("mini");
   const [estimateLoading, setEstimateLoading] = useState(false);
 
-  const fallbackEstimate = useMemo(() => {
-    const parsedDistance = Number(distanceKm);
-    const normalizedDistance =
-      Number.isFinite(parsedDistance) && parsedDistance > 0 ? parsedDistance : 1;
-    const perKmRate = VEHICLE_RATES[vehicle] || VEHICLE_RATES.mini;
-    const baseFare = 35;
-    const surgeMultiplier = normalizedDistance > 15 ? 1.12 : 1;
-    const estimatedFare = Math.round((baseFare + normalizedDistance * perKmRate) * surgeMultiplier);
-    const etaMultiplier = vehicle === "bike" ? 1.1 : vehicle === "sedan" ? 1.45 : 1.3;
-    const etaMinutes = Math.round(4 + normalizedDistance * etaMultiplier);
-
-    return {
-      distance: normalizedDistance.toFixed(1),
-      etaText: `${etaMinutes}-${etaMinutes + 5} min`,
-      fareLow: Math.max(estimatedFare - 20, 49),
-      fareHigh: estimatedFare + 35,
-    };
-  }, [distanceKm, vehicle]);
+  const fallbackEstimate = useMemo(() => buildFallbackEstimate(distanceKm, vehicle), [distanceKm, vehicle]);
   const [estimatedTrip, setEstimatedTrip] = useState(fallbackEstimate);
 
   useEffect(() => {
@@ -710,6 +768,14 @@ function HomeLanding({ onOpenAuth, copy }) {
         body: "Go online, accept requests, and manage active rides from one workspace.",
         primaryLabel: "Driver signup",
         secondaryLabel: "Driver login",
+      },
+      {
+        key: "ADMIN",
+        eyebrow: "Admin access",
+        title: "Choose admin mode",
+        body: "Review platform activity, supervise live operations, and manage approvals from one console.",
+        primaryLabel: "Admin signup",
+        secondaryLabel: "Admin login",
       },
     ];
 
@@ -1132,6 +1198,10 @@ function HomeLanding({ onOpenAuth, copy }) {
               <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{copy.driverModeTitle}</p>
               <p className="mt-2 text-sm text-slate-700">{copy.driverModeBody}</p>
             </div>
+            <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
+              <p className="text-sm font-semibold uppercase tracking-wide text-slate-500">{copy.adminModeTitle || "Admin mode"}</p>
+              <p className="mt-2 text-sm text-slate-700">{copy.adminModeBody || ""}</p>
+            </div>
           </div>
         </div>
       </div>
@@ -1141,6 +1211,9 @@ function HomeLanding({ onOpenAuth, copy }) {
 }
 
 function MinimalHomeLanding({ onOpenAuth, copy }) {
+  const landingRef = useRef(null);
+  const [pickup, setPickup] = useState("Kharadi, Pune");
+  const [drop, setDrop] = useState("Viman Nagar, Pune");
   const [distanceKm, setDistanceKm] = useState("8");
   const [vehicle, setVehicle] = useState("mini");
   const [estimateLoading, setEstimateLoading] = useState(false);
@@ -1193,6 +1266,49 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
     };
   }, [distanceKm, vehicle]);
 
+  useEffect(() => {
+    const root = landingRef.current;
+    if (!root) {
+      return undefined;
+    }
+
+    const reduceMotionPreference = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (reduceMotionPreference) {
+      return undefined;
+    }
+
+    const ctx = gsap.context(() => {
+      gsap.fromTo(
+        root.querySelectorAll("[data-hero-word]"),
+        { opacity: 0, yPercent: 105, rotateX: -70 },
+        {
+          opacity: 1,
+          yPercent: 0,
+          rotateX: 0,
+          duration: 0.9,
+          stagger: 0.045,
+          ease: "power3.out",
+        }
+      );
+
+      gsap.fromTo(
+        root.querySelectorAll("[data-float-card]"),
+        { opacity: 0, y: 22, scale: 0.98 },
+        {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          duration: 0.7,
+          stagger: 0.08,
+          delay: 0.18,
+          ease: "power2.out",
+        }
+      );
+    }, root);
+
+    return () => ctx.revert();
+  }, []);
+
   const stats = Array.isArray(copy.highlights) ? copy.highlights.slice(0, 3) : [];
   const steps = Array.isArray(copy.steps) ? copy.steps.slice(0, 3) : [];
   const roles = [
@@ -1210,39 +1326,39 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
     },
     {
       key: "ADMIN",
-      title: "Admin mode",
-      body: "Review drivers, payouts, complaints, and live platform health.",
+      title: copy.adminModeTitle || "Admin mode",
+      body: copy.adminModeBody || "",
       eyebrow: "Control",
     },
   ];
 
   return (
-    <section className="landing-home space-y-8 lg:space-y-10">
+    <section ref={landingRef} className="landing-home space-y-8 lg:space-y-10">
       <section className="landing-card landing-hero-shell card-rise overflow-hidden" data-reveal>
         <div className="landing-hero-grid grid lg:grid-cols-[1.08fr,0.92fr]">
-          <div className="p-6 sm:p-8 lg:p-12">
+          <div className="p-6 sm:p-8 lg:p-12" data-scroll data-scroll-speed="-0.25">
             <p className="landing-eyebrow">{copy.badge}</p>
             <h1 className="landing-hero-title mt-4 max-w-2xl text-4xl font-bold leading-[0.95] sm:text-5xl lg:text-6xl">
-              <span className="block">{copy.heroTitleA}</span>
-              <span className="landing-hero-title__sub mt-3 block">{copy.heroTitleB}</span>
+              <span className="block overflow-hidden">{renderAnimatedWords(copy.heroTitleA)}</span>
+              <span className="landing-hero-title__sub mt-3 block overflow-hidden">{renderAnimatedWords(copy.heroTitleB)}</span>
             </h1>
             <p className="landing-body mt-5 max-w-xl text-base leading-7 sm:text-lg">{copy.heroBody}</p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              <button className="btn-primary" onClick={() => onOpenAuth("signup", "RIDER")}>
+              <button className="btn-primary landing-cta-button landing-cta-button--primary" onClick={() => onOpenAuth("signup", "RIDER")}>
                 {copy.heroBookRideCta || "Book a Ride"}
               </button>
-              <button className="btn-secondary" onClick={() => onOpenAuth("signup", "DRIVER")}>
+              <button className="btn-secondary landing-cta-button" onClick={() => onOpenAuth("signup", "DRIVER")}>
                 {copy.heroDriveEarnCta || "Drive & Earn"}
               </button>
-              <button className="btn-tertiary" onClick={() => onOpenAuth("login")}>
+              <button className="btn-tertiary landing-cta-button" onClick={() => onOpenAuth("login")}>
                 {copy.heroLoginCta || "Login"}
               </button>
             </div>
 
             <div className="landing-stats mt-10 grid gap-3 sm:grid-cols-3">
-              {stats.map((item) => (
-                <article key={item.label} className="landing-stat-card">
+              {stats.map((item, index) => (
+                <article key={item.label} className="landing-stat-card landing-stat-card--animated" data-float-card style={{ animationDelay: `${index * 0.18}s` }}>
                   <p className="text-2xl font-bold text-slate-50">{item.value}</p>
                   <p className="mt-1 text-sm text-slate-400">{item.label}</p>
                 </article>
@@ -1250,8 +1366,8 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
             </div>
           </div>
 
-          <div className="landing-card-subtle border-t p-6 sm:p-8 lg:border-l lg:border-t-0 lg:p-12">
-            <div className="landing-estimator rounded-[1.75rem] p-5">
+          <div className="landing-card-subtle border-t p-6 sm:p-8 lg:border-l lg:border-t-0 lg:p-12" data-scroll data-scroll-speed="0.35">
+            <div className={`landing-estimator landing-estimator--animated rounded-[1.75rem] p-5 ${estimateLoading ? "loading-shimmer" : ""}`} data-float-card>
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <p className="landing-eyebrow">{copy.quickEstimatorEyebrow || "Ride estimator"}</p>
@@ -1261,7 +1377,24 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
               </div>
               <p className="landing-body mt-3 text-sm leading-6">{copy.quickEstimatorBody || "Enter a distance and get an instant estimate."}</p>
 
-              <div className="mt-6 grid gap-3 sm:grid-cols-[1fr,0.95fr]">
+              <div className="mt-6 grid gap-3">
+                <input
+                  type="text"
+                  value={pickup}
+                  onChange={(event) => setPickup(event.target.value)}
+                  placeholder={copy.quickEstimatorPickupPlaceholder || "e.g. Kharadi, Pune"}
+                  className="landing-input w-full rounded-2xl px-4 py-3 outline-none"
+                />
+                <input
+                  type="text"
+                  value={drop}
+                  onChange={(event) => setDrop(event.target.value)}
+                  placeholder={copy.quickEstimatorDropPlaceholder || "e.g. Viman Nagar, Pune"}
+                  className="landing-input w-full rounded-2xl px-4 py-3 outline-none"
+                />
+              </div>
+
+              <div className="mt-3 grid gap-3 sm:grid-cols-[1fr,0.95fr]">
                 <input
                   type="number"
                   min="1"
@@ -1281,8 +1414,10 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
                 </select>
               </div>
 
-              <div className="landing-estimator__summary mt-6 rounded-[1.5rem] px-5 py-5 text-white">
-                <p className="text-sm text-slate-300">{estimatedTrip.distance} km route preview</p>
+              <div className={`landing-estimator__summary landing-estimator__summary--animated mt-6 rounded-[1.5rem] px-5 py-5 text-white ${estimateLoading ? "loading-shimmer" : ""}`}>
+                <p className="text-sm text-slate-300">
+                  {(pickup.trim() && drop.trim() ? `${pickup.trim()} to ${drop.trim()}` : "Route preview")} • {estimatedTrip.distance} km
+                </p>
                 <div className="mt-4 grid gap-4 sm:grid-cols-2">
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-400">{copy.quickEstimatorEtaLabel || "Estimated arrival"}</p>
@@ -1295,7 +1430,6 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
                 </div>
               </div>
 
-              <p className="mt-4 text-xs leading-5 text-slate-500/90">{copy.quickEstimatorHint || "Actual fare may vary with traffic, tolls, and surge."}</p>
             </div>
           </div>
         </div>
@@ -1318,13 +1452,13 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
         </div>
 
         <div className="landing-card landing-media-card overflow-hidden">
-          <img src={heroImage} alt="RideShare booking preview" className="h-64 w-full object-cover sm:h-80" />
+          <img src={heroImage} alt="RideShare booking preview" className="landing-media-card__image h-64 w-full object-cover sm:h-80" />
           <div className="grid gap-4 border-t border-slate-800/70 p-6 sm:grid-cols-2 sm:p-8">
-            <article className="landing-editorial-card">
+            <article className="landing-editorial-card landing-editorial-card--animated">
               <p className="landing-eyebrow">{copy.appDemoRideTitle || "Booking and match"}</p>
               <p className="mt-3 text-sm leading-6 text-slate-400">{copy.appDemoRideBody || "Pick route, confirm, and get matched with a nearby driver."}</p>
             </article>
-            <article className="landing-editorial-card">
+            <article className="landing-editorial-card landing-editorial-card--animated">
               <p className="landing-eyebrow">{copy.appDemoSafetyTitle || "Live ride confidence"}</p>
               <p className="mt-3 text-sm leading-6 text-slate-400">{copy.appDemoSafetyBody || "Track route and ride status updates in real time."}</p>
             </article>
@@ -1334,7 +1468,7 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
 
       <section className="landing-role-grid grid gap-6 lg:grid-cols-3" data-reveal>
         {roles.map((role) => (
-          <article key={role.key} className={`landing-card landing-role-card landing-role-card--${role.key.toLowerCase()} p-6 sm:p-8`}>
+            <article key={role.key} className={`landing-card landing-role-card landing-role-card--${role.key.toLowerCase()} landing-role-card--interactive p-6 sm:p-8`}>
             <div className="flex items-center justify-between gap-4">
               <p className="landing-eyebrow">{role.eyebrow}</p>
               <span className="landing-role-chip">{role.key}</span>
@@ -1342,8 +1476,8 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
             <h2 className="mt-4 text-2xl font-bold text-slate-50">{role.title}</h2>
             <p className="mt-3 text-sm leading-7 text-slate-400">{role.body}</p>
             <div className="mt-6 flex flex-wrap gap-3">
-              <button className="btn-primary" onClick={() => onOpenAuth("signup", role.key)}>Create account</button>
-              <button className="btn-secondary" onClick={() => onOpenAuth("login", role.key)}>Login</button>
+              <button className="btn-primary landing-cta-button landing-cta-button--primary" onClick={() => onOpenAuth("signup", role.key)}>Create account</button>
+              <button className="btn-secondary landing-cta-button" onClick={() => onOpenAuth("login", role.key)}>Login</button>
             </div>
           </article>
         ))}
@@ -1367,7 +1501,7 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
           }}
         />
         <div className="landing-card landing-media-card overflow-hidden">
-          <img src={safetyImage} alt="RideShare live tracking preview" className="h-64 w-full object-cover" />
+          <img src={safetyImage} alt="RideShare live tracking preview" className="landing-media-card__image h-64 w-full object-cover" />
           <div className="p-6 sm:p-8">
             <p className="landing-eyebrow">{copy.rolesTitle}</p>
             <h3 className="mt-3 text-2xl font-bold text-slate-50">{copy.safetyTitle}</h3>
@@ -1385,6 +1519,7 @@ export default function App() {
   const locomotiveRef = useRef(null);
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
+  const settingsPanelRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
   const [authMode, setAuthMode] = useState("login");
   const [preferredRole, setPreferredRole] = useState("RIDER");
@@ -1404,19 +1539,6 @@ export default function App() {
   const dictionary = TRANSLATIONS[preferences.language] || TRANSLATIONS.en;
   const revealKey = `${currentPage}|${showAuth}|${showSettings}|${preferences.theme}`;
   useRevealItems(appRef, revealKey);
-  const authTitle = authMode === "login" ? dictionary.auth.welcomeBack : dictionary.auth.createAccountHeading;
-  const authSubtitle =
-    authMode === "login"
-      ? dictionary.auth.loginSubtitle || "Enter your credentials"
-      : dictionary.auth.signupSubtitle || "Create your rider or driver profile";
-  const authSwitchPrompt =
-    authMode === "login"
-      ? dictionary.auth.switchToSignupPrompt || "Don't have an account?"
-      : dictionary.auth.switchToLoginPrompt || "Already have an account?";
-  const authSwitchAction =
-    authMode === "login"
-      ? dictionary.auth.switchToSignupAction || dictionary.auth.signupTab
-      : dictionary.auth.switchToLoginAction || dictionary.auth.loginTab;
   const translationLanguageOptions = useMemo(() => websiteLanguageOptions, [websiteLanguageOptions]);
   const reduceMotion = useMemo(
     () =>
@@ -1499,7 +1621,14 @@ export default function App() {
   }, [preferences.fontScale, preferences.language, preferences.theme]);
 
   useEffect(() => {
-    document.documentElement.dataset.page = currentPage;
+    document.documentElement.dataset.page =
+      currentPage === "user"
+        ? "rider"
+        : currentPage === "driver"
+          ? "driver"
+          : currentPage === "admin"
+            ? "admin"
+            : currentPage;
   }, [currentPage]);
 
   useEffect(() => {
@@ -1687,6 +1816,44 @@ export default function App() {
   }, [currentPage]);
 
   useEffect(() => {
+    if (
+      typeof window === "undefined" ||
+      currentPage !== "home" ||
+      showAuth ||
+      reduceMotion ||
+      window.innerWidth < 1024 ||
+      !scrollContainerRef.current
+    ) {
+      return undefined;
+    }
+
+    let cancelled = false;
+
+    const initializeScroll = async () => {
+      const module = await import("locomotive-scroll");
+      if (cancelled || locomotiveRef.current || !scrollContainerRef.current) {
+        return;
+      }
+
+      const LocomotiveScroll = module.default;
+      locomotiveRef.current = new LocomotiveScroll({
+        el: scrollContainerRef.current,
+        smooth: true,
+        lerp: 0.08,
+        multiplier: 0.85,
+        tablet: { smooth: false },
+        smartphone: { smooth: false },
+      });
+    };
+
+    initializeScroll().catch(() => {});
+
+    return () => {
+      cancelled = true;
+    };
+  }, [currentPage, showAuth, reduceMotion]);
+
+  useEffect(() => {
     const locomotive = locomotiveRef.current;
     if (!locomotive) {
       return undefined;
@@ -1725,6 +1892,33 @@ export default function App() {
       document.removeEventListener("keydown", handleEscape);
     };
   }, [showHeaderMenu]);
+
+  useEffect(() => {
+    if (!showSettings) {
+      return undefined;
+    }
+
+    const handlePointerDown = (event) => {
+      if (settingsPanelRef.current?.contains(event.target)) {
+        return;
+      }
+      setShowSettings(false);
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === "Escape") {
+        setShowSettings(false);
+      }
+    };
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, [showSettings]);
 
   useEffect(() => {
     if (showAuth || showSettings) {
@@ -1801,20 +1995,14 @@ export default function App() {
   };
 
   const handleBrandClick = () => {
-    clearSessionStorage();
-    setSession(INITIAL_SESSION);
     setShowAuth(false);
     setShowSettings(false);
     setShowHeaderMenu(false);
-    window.location.reload();
+    setActiveDashboardPage("home");
   };
 
-  const dashboardTabs =
-    session.role === "ADMIN"
-      ? [{ key: "admin", label: "Admin workspace" }]
-      : session.role === "DRIVER"
-        ? [{ key: "driver", label: "Driver workspace" }]
-        : [];
+  const workspaceTabs = getWorkspaceMeta(session.role);
+  const switchableWorkspaceTabs = getSwitchableWorkspaceMeta(session.role);
 
   const changeLanguage = (event) => {
     setPreferences((previous) => ({
@@ -1934,6 +2122,25 @@ export default function App() {
                             <p className="header-menu__eyebrow">Signed in as</p>
                             <p className="header-menu__user">{session.name || session.role || dictionary.header.user}</p>
                           </div>
+                          {switchableWorkspaceTabs.length > 0 ? (
+                            <div className="header-menu__workspace-list">
+                              {switchableWorkspaceTabs.map((workspace) => (
+                                <button
+                                  key={workspace.key}
+                                  type="button"
+                                  className={`header-menu__item ${
+                                    activeDashboardPage === workspace.key ? "header-menu__item--primary" : ""
+                                  }`}
+                                  onClick={() => {
+                                    setActiveDashboardPage(workspace.key);
+                                    setShowHeaderMenu(false);
+                                  }}
+                                >
+                                  {workspace.label}
+                                </button>
+                              ))}
+                            </div>
+                          ) : null}
                           <div className="header-menu__control">
                             <NotificationCenter token={session.token} />
                           </div>
@@ -1983,35 +2190,6 @@ export default function App() {
           </div>
         </header>
 
-        {session.token && dashboardTabs.length > 0 ? (
-          <div className={`border-b backdrop-blur ${isOpsDark ? "border-slate-800/90 bg-slate-950/88" : "border-slate-200/70 bg-white/70"}`}>
-            <div className={`mx-auto flex w-full flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 ${isOpsPage ? "max-w-[96rem] xl:px-8" : "max-w-7xl lg:px-10"}`}>
-              <div>
-                <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${isOpsDark ? "text-slate-400" : "text-slate-500"}`}>Workspace</p>
-                <p className={`text-sm ${isOpsDark ? "text-slate-300" : "text-slate-600"}`}>
-                  {session.role === "ADMIN"
-                    ? "Platform controls, approvals, and live analytics"
-                    : session.role === "DRIVER"
-                    ? "Driver tools and live operations"
-                    : "Your booking dashboard and account workspace"}
-                </p>
-              </div>
-              <div className="dashboard-switcher">
-                {dashboardTabs.map((tab) => (
-                  <button
-                    key={tab.key}
-                    type="button"
-                    className={`dashboard-switcher__pill ${activeDashboardPage === tab.key ? "dashboard-switcher__pill--active" : ""}`}
-                    onClick={() => setActiveDashboardPage(tab.key)}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-        ) : null}
-
         <AnimatePresence>
           {showSettings ? (
             <MotionAside
@@ -2020,6 +2198,7 @@ export default function App() {
               exit={{ opacity: 0, x: 18, scale: 0.98 }}
               transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
               className="fixed right-4 top-24 z-40 w-[20rem] max-h-[78vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:right-6"
+              ref={settingsPanelRef}
             >
               <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">{dictionary.settings.title}</h2>
               {settingsNotice && (
@@ -2146,53 +2325,18 @@ export default function App() {
 
         <AnimatePresence>
           {showAuth && !session.token ? (
-            <MotionDiv
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.22, ease: "easeOut" }}
-              className="auth-overlay fixed inset-0 z-50 grid place-items-center px-4 py-6"
-            >
-              <MotionDiv
-                initial={{ opacity: 0, y: 16, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: 14, scale: 0.97 }}
-                transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                className="auth-shell w-full max-w-lg"
-                onClick={(event) => event.stopPropagation()}
-              >
-                <button
-                  type="button"
-                  onClick={closeAuthModal}
-                  className="auth-close"
-                  aria-label="Close authentication panel"
-                >
-                  x
-                </button>
-                <div className="auth-shell__header">
-                  <p className="auth-shell__eyebrow">{dictionary.header.product}</p>
-                  <h2 className="auth-shell__title">{authTitle}</h2>
-                  <p className="auth-shell__subtitle">{authSubtitle}</p>
-                </div>
-                <div className="auth-shell__form">
-                  {authMode === "login" ? (
-                    <Login onLogin={handleLogin} labels={dictionary.auth} defaultRole={preferredRole} />
-                  ) : (
-                    <Signup onSignup={handleSignup} labels={dictionary.auth} defaultRole={preferredRole} />
-                  )}
-                </div>
-                <p className="auth-shell__footer">
-                  <span>{authSwitchPrompt}</span>
-                  <button
-                    type="button"
-                    className="auth-shell__footer-action"
-                    onClick={() => setAuthMode(authMode === "login" ? "signup" : "login")}
-                  >
-                    {authSwitchAction}
-                  </button>
-                </p>
-              </MotionDiv>
-            </MotionDiv>
+            <AuthModal
+              isOpen={showAuth && !session.token}
+              mode={authMode}
+              onModeChange={setAuthMode}
+              onClose={closeAuthModal}
+              onLogin={handleLogin}
+              onSignup={handleSignup}
+              labels={dictionary.auth}
+              productName={dictionary.header.product}
+              defaultRole={preferredRole}
+              theme={preferences.theme}
+            />
           ) : null}
         </AnimatePresence>
       </div>

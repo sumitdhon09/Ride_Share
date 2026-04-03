@@ -54,7 +54,6 @@ export default function ActiveTripCard({
           <h3 className={`mt-2 text-xl font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>
             {ride.pickupLocation} to {ride.dropLocation}
           </h3>
-          <p className={`mt-2 text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>OTP checks and rider actions stay visible here.</p>
         </div>
         <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
           {ride.status}
@@ -72,7 +71,6 @@ export default function ActiveTripCard({
                 placeholder="Enter pickup OTP"
                 className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
               />
-              <p className="mt-2 text-xs text-slate-500">{pickupOtp ? "OTP ready" : "Verify before pickup"}</p>
             </div>
             <div className={`rounded-[1.3rem] border p-4 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}>
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Drop OTP</p>
@@ -82,7 +80,6 @@ export default function ActiveTripCard({
                 placeholder="Enter drop OTP"
                 className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
               />
-              <p className="mt-2 text-xs text-slate-500">{dropOtp ? "Completion ready" : "Needed on drop"}</p>
             </div>
           </div>
 

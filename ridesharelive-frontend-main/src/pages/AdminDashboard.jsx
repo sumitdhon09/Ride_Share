@@ -39,6 +39,9 @@ const NAV_ITEMS = [
   { id: "settings", label: "Settings", path: "/settings" },
 ];
 
+const ADMIN_ROUTE_STORAGE_KEY = "rideshare:admin-route";
+const VALID_ADMIN_PATHS = new Set(["/"].concat(NAV_ITEMS.map((item) => item.path)));
+
 const SETTINGS_LABELS = {
   "pricing.surgeCap": "Surge cap",
   "pricing.nightCharge": "Night charge",
@@ -150,7 +153,7 @@ function DataTable({ columns, rows, isDark, emptyLabel = "No data", loading = fa
               [...Array.from({ length: 4 })].map((_, index) => (
                 <tr key={`loading-${index}`}>
                   <td colSpan={columns.length + (rowActions ? 1 : 0)} className="px-4 py-4">
-                    <div className={`h-10 animate-pulse rounded-xl ${isDark ? "bg-slate-900" : "bg-slate-100"}`} />
+                    <div className={`loading-shimmer h-10 rounded-xl ${isDark ? "bg-slate-900" : "bg-slate-100"}`} />
                   </td>
                 </tr>
               ))
@@ -380,7 +383,8 @@ function AdminWorkspace({ token, adminName }) {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("rideshare:admin-route", location.pathname);
+    const nextPath = VALID_ADMIN_PATHS.has(location.pathname) ? location.pathname : "/dashboard";
+    localStorage.setItem(ADMIN_ROUTE_STORAGE_KEY, nextPath);
   }, [location.pathname]);
 
   useEffect(() => {
@@ -946,7 +950,13 @@ function AdminWorkspace({ token, adminName }) {
 }
 
 export default function AdminDashboard({ token = localStorage.getItem("token") || "", adminName = localStorage.getItem("name") || "Admin" }) {
-  const initialRoute = typeof window !== "undefined" ? localStorage.getItem("rideshare:admin-route") || "/dashboard" : "/dashboard";
+  const initialRoute = (() => {
+    if (typeof window === "undefined") return "/dashboard";
+    const savedRoute = localStorage.getItem(ADMIN_ROUTE_STORAGE_KEY) || "/dashboard";
+    if (VALID_ADMIN_PATHS.has(savedRoute)) return savedRoute === "/" ? "/dashboard" : savedRoute;
+    localStorage.removeItem(ADMIN_ROUTE_STORAGE_KEY);
+    return "/dashboard";
+  })();
   return (
     <MemoryRouter initialEntries={[initialRoute]}>
       <AdminWorkspace token={token} adminName={adminName} />

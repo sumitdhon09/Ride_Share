@@ -71,6 +71,7 @@ export default function NotificationCenter({ token = "" }) {
   const [endpointPrefix, setEndpointPrefix] = useState("");
   const [liveToast, setLiveToast] = useState(null);
   const [pulseUnreadBadge, setPulseUnreadBadge] = useState(false);
+  const [isDark, setIsDark] = useState(() => document.documentElement.dataset.theme === "dark-theme");
   const containerRef = useRef(null);
   const panelRef = useRef(null);
   const listRef = useRef(null);
@@ -81,6 +82,15 @@ export default function NotificationCenter({ token = "" }) {
   const pulseTimerRef = useRef(null);
   const openRef = useRef(open);
   const stompClientRef = useRef(null);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const syncTheme = () => setIsDark(root.dataset.theme === "dark-theme");
+    syncTheme();
+    const observer = new MutationObserver(syncTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     openRef.current = open;
@@ -511,14 +521,18 @@ export default function NotificationCenter({ token = "" }) {
       {renderPanel && (
         <div
           ref={panelRef}
-          className="absolute right-0 top-12 z-50 w-[22rem] max-w-[90vw] rounded-2xl border border-slate-200 bg-white p-3 opacity-0 shadow-2xl"
+          className={`absolute right-0 top-12 z-50 w-[22rem] max-w-[90vw] rounded-2xl border p-3 opacity-0 shadow-2xl ${
+            isDark ? "border-slate-800 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-900"
+          }`}
         >
           <div className="flex items-center justify-between gap-2">
-            <p className="text-sm font-bold text-slate-900">Notifications</p>
+            <p className={`text-sm font-bold ${isDark ? "text-slate-50" : "text-slate-900"}`}>Notifications</p>
             <div className="flex items-center gap-2">
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+                className={`rounded-lg border px-2 py-1 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-60 ${
+                  isDark ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                }`}
                 onClick={sendTestNotification}
                 disabled={sendingTest}
               >
@@ -526,20 +540,22 @@ export default function NotificationCenter({ token = "" }) {
               </button>
               <button
                 type="button"
-                className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                className={`rounded-lg border px-2 py-1 text-xs font-semibold ${
+                  isDark ? "border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                }`}
                 onClick={markAllRead}
               >
                 Mark all read
               </button>
             </div>
           </div>
-          {loading && <p className="mt-2 text-xs text-slate-500">Loading...</p>}
+          {loading && <p className={`mt-2 text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>Loading...</p>}
           {error && (
             <p className="mt-2 rounded-lg border border-red-200 bg-red-50 px-2 py-1 text-xs text-red-600">{error}</p>
           )}
           <div className="mt-3 max-h-72 space-y-2 overflow-y-auto pr-1" ref={listRef} data-notification-list="1">
             {notifications.length === 0 ? (
-              <p className="text-sm text-slate-500">No notifications yet.</p>
+              <p className={`text-sm ${isDark ? "text-slate-400" : "text-slate-500"}`}>No notifications yet.</p>
             ) : (
               notifications.map((notification) => (
                 <article
@@ -547,20 +563,26 @@ export default function NotificationCenter({ token = "" }) {
                   data-notification-card="1"
                   className={`rounded-xl border p-2 ${
                     notification.read
-                      ? "border-slate-200 bg-slate-50"
-                      : "border-cyan-200 bg-cyan-50"
+                      ? isDark
+                        ? "border-slate-800 bg-slate-900/85"
+                        : "border-slate-200 bg-slate-50"
+                      : isDark
+                        ? "border-cyan-400/25 bg-cyan-400/10"
+                        : "border-cyan-200 bg-cyan-50"
                   }`}
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-slate-900">{notification.title || "Notification"}</p>
-                      <p className="mt-1 text-xs text-slate-700">{notification.message || ""}</p>
-                      <p className="mt-1 text-[11px] text-slate-500">{formatTime(notification.createdAt)}</p>
+                      <p className={`text-sm font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>{notification.title || "Notification"}</p>
+                      <p className={`mt-1 text-xs ${isDark ? "text-slate-200" : "text-slate-700"}`}>{notification.message || ""}</p>
+                      <p className={`mt-1 text-[11px] ${isDark ? "text-slate-400" : "text-slate-500"}`}>{formatTime(notification.createdAt)}</p>
                     </div>
                     {!notification.read && (
                       <button
                         type="button"
-                        className="rounded-md border border-slate-300 bg-white px-2 py-1 text-[11px] font-semibold text-slate-700 hover:bg-slate-100"
+                        className={`rounded-md border px-2 py-1 text-[11px] font-semibold ${
+                          isDark ? "border-slate-700 bg-slate-900 text-cyan-200 hover:bg-slate-800" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
+                        }`}
                         onClick={() => markRead(notification.id)}
                       >
                         Read

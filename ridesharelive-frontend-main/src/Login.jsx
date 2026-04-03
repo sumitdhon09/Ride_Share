@@ -47,9 +47,9 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
     ...labels,
   };
   const roleCards = [
-    { value: "RIDER", label: copy.rider, hint: "Book your next trip" },
-    { value: "DRIVER", label: copy.driver, hint: "Accept rides and go online" },
-    ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: copy.admin, hint: "Monitor ops and payouts" }] : []),
+    { value: "RIDER", label: copy.rider },
+    { value: "DRIVER", label: copy.driver },
+    ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: copy.admin }] : []),
   ];
 
   const requestLiveLocation = () =>
@@ -118,7 +118,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="auth-form">
+    <form onSubmit={handleSubmit} className="auth-form auth-form--login">
       <div className="auth-field">
         <label className="auth-field__label" htmlFor="login-email">
           {copy.email}
@@ -178,7 +178,10 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         {loading ? copy.loginLoading : copy.loginAction}
       </button>
 
-      <div className="auth-role-grid" aria-label={copy.role}>
+      <div
+        className={`auth-role-grid auth-role-grid--login ${roleCards.length > 2 ? "auth-role-grid--triple" : ""}`}
+        aria-label={copy.role}
+      >
         {roleCards.map((item) => (
           <button
             key={item.value}
@@ -189,7 +192,6 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
             <span className="auth-role-card__badge">{getRoleBadge(item.value)}</span>
             <span className="auth-role-card__copy">
               <strong>{item.label}</strong>
-              <small>{item.hint}</small>
             </span>
           </button>
         ))}

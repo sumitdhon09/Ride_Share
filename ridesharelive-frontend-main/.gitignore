@@ -25,3 +25,6 @@ test-results
 *.sln
 *.sw?
 .env.production
+.env.production.ready
+.env.production.local
+.env
