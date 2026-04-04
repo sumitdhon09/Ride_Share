@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../api";
-import rideShareLogo from "../../public/ride-share-logo.png";
+const rideShareLogo = "/ride-share-logo.png";
 
 const publicAdminAccessEnabled =
   String(import.meta.env.VITE_ENABLE_PUBLIC_ADMIN_ACCESS || "").toLowerCase() === "true" || import.meta.env.DEV;
