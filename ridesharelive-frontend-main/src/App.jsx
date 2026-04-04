@@ -1550,8 +1550,6 @@ function MinimalHomeLanding({ onOpenAuth, copy }) {
 
 export default function App() {
   const appRef = useRef(null);
-  const scrollContainerRef = useRef(null);
-  const locomotiveRef = useRef(null);
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
@@ -1947,70 +1945,6 @@ export default function App() {
   }, [preferences.language, syncGoogleLanguageOptions]);
 
   useEffect(() => {
-    if (locomotiveRef.current) {
-      locomotiveRef.current.destroy();
-      locomotiveRef.current = null;
-    }
-    document.documentElement.classList.remove("has-scroll-init", "has-scroll-smooth", "has-scroll-scrolling");
-    document.body.classList.remove("has-scroll-init", "has-scroll-smooth", "has-scroll-scrolling");
-    if (scrollContainerRef.current) {
-      scrollContainerRef.current.style.transform = "";
-    }
-    return undefined;
-  }, [currentPage]);
-
-  useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      currentPage !== "home" ||
-      showAuth ||
-      reduceMotion ||
-      window.innerWidth < 1024 ||
-      !scrollContainerRef.current
-    ) {
-      return undefined;
-    }
-
-    let cancelled = false;
-
-    const initializeScroll = async () => {
-      const module = await import("locomotive-scroll");
-      if (cancelled || locomotiveRef.current || !scrollContainerRef.current) {
-        return;
-      }
-
-      const LocomotiveScroll = module.default;
-      locomotiveRef.current = new LocomotiveScroll({
-        el: scrollContainerRef.current,
-        smooth: true,
-        lerp: 0.08,
-        multiplier: 0.85,
-        tablet: { smooth: false },
-        smartphone: { smooth: false },
-      });
-    };
-
-    initializeScroll().catch(() => {});
-
-    return () => {
-      cancelled = true;
-    };
-  }, [currentPage, showAuth, reduceMotion]);
-
-  useEffect(() => {
-    const locomotive = locomotiveRef.current;
-    if (!locomotive) {
-      return undefined;
-    }
-
-    const timerId = window.setTimeout(() => {
-      locomotive.update();
-    }, 90);
-
-    return () => window.clearTimeout(timerId);
-  }, [currentPage, showAuth, showSettings, preferences.fontScale, preferences.language, session.token]);
-
-  useEffect(() => {
     if (!showHeaderMenu) {
       return undefined;
     }
@@ -2335,7 +2269,7 @@ export default function App() {
           notice={settingsNotice}
         />
 
-        <div ref={scrollContainerRef} data-scroll-container>
+        <div>
           <main
             className={`mx-auto w-full pb-16 pt-8 ${isOpsPage ? "max-w-none px-0" : "max-w-7xl px-4 sm:px-6 lg:px-10"}`}
             data-reveal="instant"

@@ -18,6 +18,8 @@ import org.springframework.data.redis.domain.geo.GeoReference;
 import org.springframework.data.redis.connection.RedisGeoCommands.GeoSearchCommandArgs;
 import org.springframework.stereotype.Service;
 
+import com.example.backend.repository.UserRepository;
+
 @Service
 public class DriverLocationCacheService {
 
@@ -25,9 +27,11 @@ public class DriverLocationCacheService {
     private static final String DRIVER_HASH_PREFIX = "driver:location:";
 
     private final StringRedisTemplate redisTemplate;
+    private final UserRepository userRepository;
 
-    public DriverLocationCacheService(StringRedisTemplate redisTemplate) {
+    public DriverLocationCacheService(StringRedisTemplate redisTemplate, UserRepository userRepository) {
         this.redisTemplate = redisTemplate;
+        this.userRepository = userRepository;
     }
 
     public void upsertDriverLocation(Long driverId, Double lat, Double lon) {
@@ -60,7 +64,7 @@ public class DriverLocationCacheService {
 
         int safeLimit = (limit == null || limit <= 0) ? 10 : Math.min(limit, 100);
         Distance searchDistance = new Distance(radiusKm, Metrics.KILOMETERS);
-        GeoSearchCommandArgs args = GeoSearchCommandArgs.newGeoSearchArgs().includeCoordinates().sortAscending().limit(safeLimit);
+        GeoSearchCommandArgs args = GeoSearchCommandArgs.newGeoSearchArgs().includeCoordinates().sortAscending().limit(50); // Fetch more to filter online
 
         GeoOperations<String, String> geoOps = redisTemplate.opsForGeo();
         GeoResults<GeoLocation<String>> results =
@@ -76,21 +80,40 @@ public class DriverLocationCacheService {
                 continue;
             }
 
-            String driverId = content.getName();
-            Map<String, Object> entry = new LinkedHashMap<>();
-            entry.put("driverId", driverId);
-            if (result.getDistance() != null) {
-                entry.put("distanceKm", roundTo3(result.getDistance().getValue()));
+            String driverIdStr = content.getName();
+            Long driverId = Long.valueOf(driverIdStr);
+            
+            // Fetch driver details and check if online
+            var driverOpt = userRepository.findById(driverId);
+            if (driverOpt.isEmpty()) continue;
+            var driver = driverOpt.get();
+            
+            // Only show online drivers who are actually drivers
+            if (!Boolean.TRUE.equals(driver.getOnline()) || !"DRIVER".equalsIgnoreCase(driver.getRole())) {
+                continue;
             }
+
+            Map<String, Object> entry = new LinkedHashMap<>();
+            entry.put("id", driver.getId());
+            entry.put("name", driver.getName());
+            entry.put("vehicleType", driver.getVehicleLabel() == null ? "AUTO" : driver.getVehicleLabel());
+            entry.put("rating", driver.getRatingAverage() == null ? 4.5 : driver.getRatingAverage());
+            entry.put("vehicleNumber", "TN-" + (1000 + driver.getId() % 9000));
+            
+            if (result.getDistance() != null) {
+                double dist = result.getDistance().getValue();
+                entry.put("distanceKm", roundTo3(dist));
+                // Estimate ETA: 2 mins per km + 2 mins base
+                entry.put("etaMinutes", (int) Math.round(dist * 2.0 + 2.0));
+            }
+            
             if (content.getPoint() != null) {
                 entry.put("lon", roundTo6(content.getPoint().getX()));
                 entry.put("lat", roundTo6(content.getPoint().getY()));
             }
-            Object updatedAt = redisTemplate.opsForHash().get(DRIVER_HASH_PREFIX + driverId, "updatedAt");
-            if (updatedAt != null) {
-                entry.put("updatedAt", updatedAt.toString());
-            }
+            
             nearby.add(entry);
+            if (nearby.size() >= safeLimit) break;
         }
         return nearby;
     }

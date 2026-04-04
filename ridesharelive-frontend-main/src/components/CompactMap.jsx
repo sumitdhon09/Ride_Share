@@ -1,9 +1,9 @@
-import { useEffect, useMemo, useState } from "react";
-import { motion } from "motion/react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import L from "leaflet";
-import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents, Circle } from "react-leaflet";
 import { fetchRouteSummary, geocodePlace, resolvePickupCoordinate, reverseGeocodeCoordinate } from "../utils/routing";
 
+// Leaflet marker fix
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: new URL("leaflet/dist/images/marker-icon-2x.png", import.meta.url).href,
@@ -12,19 +12,59 @@ L.Icon.Default.mergeOptions({
 });
 
 const DEFAULT_CENTER = [20.5937, 78.9629];
-const userIcon = new L.DivIcon({ className: "rideshare-map-marker rideshare-map-marker--user", html: '<span class="rideshare-map-marker__dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] });
-const pickupIcon = new L.DivIcon({ className: "rideshare-map-marker rideshare-map-marker--pickup", html: '<span class="rideshare-map-marker__dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] });
-const dropIcon = new L.DivIcon({ className: "rideshare-map-marker rideshare-map-marker--drop", html: '<span class="rideshare-map-marker__dot"></span>', iconSize: [18, 18], iconAnchor: [9, 9] });
 
-function MapViewport({ points, center }) {
+// Custom Icons
+const userIcon = new L.DivIcon({ 
+  className: "rideshare-map-marker rideshare-map-marker--user", 
+  html: '<span class="rideshare-map-marker__dot"></span>', 
+  iconSize: [18, 18], 
+  iconAnchor: [9, 9] 
+});
+
+const pickupIcon = new L.DivIcon({ 
+  className: "rideshare-map-marker rideshare-map-marker--pickup", 
+  html: '<span class="rideshare-map-marker__dot"></span>', 
+  iconSize: [20, 20], 
+  iconAnchor: [10, 10] 
+});
+
+const dropIcon = new L.DivIcon({ 
+  className: "rideshare-map-marker rideshare-map-marker--drop", 
+  html: '<span class="rideshare-map-marker__dot"></span>', 
+  iconSize: [18, 18], 
+  iconAnchor: [9, 9] 
+});
+
+const createDriverIcon = (vehicleType = "CAR", isNearest = false) => {
+  const emoji = vehicleType.toUpperCase() === "BIKE" ? "🛵" : 
+                vehicleType.toUpperCase() === "AUTO" ? "🛺" : 
+                vehicleType.toUpperCase() === "XL" ? "🚙" : "🚗";
+  
+  return new L.DivIcon({
+    className: "driver-marker-static",
+    html: `
+      <div class="relative flex items-center justify-center">
+        <div class="z-10 bg-white rounded-full p-1 shadow border ${isNearest ? 'border-amber-400' : 'border-slate-200'}">
+          <span class="text-lg">${emoji}</span>
+        </div>
+      </div>
+    `,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16]
+  });
+};
+
+function MapViewport({ points, center, padding = [40, 40] }) {
   const map = useMap();
   useEffect(() => {
     if (points.length >= 2) {
-      map.fitBounds(points, { padding: [40, 40] });
+      map.fitBounds(points, { padding, animate: false });
       return;
     }
-    map.setView(center, 11);
-  }, [center, map, points]);
+    if (center) {
+      map.setView(center, 14, { animate: false });
+    }
+  }, [center, map, points, padding]);
   return null;
 }
 
@@ -51,14 +91,39 @@ export default function CompactMap({
   currentLocation,
   onMapLocationSelect,
   onRouteResolved,
+  nearbyDrivers = [],
+  searchRadiusKm = 5,
+  onRadiusChange,
   selectionTarget = "drop",
   theme = "light",
-  heightClass = "h-[300px] sm:h-[340px] lg:h-[360px]",
+  heightClass = "h-[340px] sm:h-[400px] lg:h-[440px]",
 }) {
   const [pickupPoint, setPickupPoint] = useState(null);
   const [dropPoint, setDropPoint] = useState(null);
   const [routePath, setRoutePath] = useState([]);
   const [selectionStatus, setSelectionStatus] = useState("");
+  const [simulatedDrivers, setSimulatedDrivers] = useState([]);
+  const simIntervalRef = useRef(null);
+
+  useEffect(() => {
+    setSimulatedDrivers(nearbyDrivers.map(d => ({ ...d, simLat: d.lat, simLon: d.lon })));
+  }, [nearbyDrivers]);
+
+  // Slower simulation (10 seconds)
+  useEffect(() => {
+    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
+    simIntervalRef.current = setInterval(() => {
+      setSimulatedDrivers(prev => prev.map(d => {
+        const drift = 0.00003;
+        return {
+          ...d,
+          simLat: d.simLat + (Math.random() - 0.5) * drift,
+          simLon: d.simLon + (Math.random() - 0.5) * drift,
+        };
+      }));
+    }, 10000);
+    return () => clearInterval(simIntervalRef.current);
+  }, [simulatedDrivers.length]);
 
   useEffect(() => {
     let active = true;
@@ -67,6 +132,7 @@ export default function CompactMap({
     const loadRoute = async () => {
       const normalizedPickup = pickup?.trim();
       const normalizedDrop = drop?.trim();
+      
       if ((!normalizedPickup && !pickupCoordinate) || (!normalizedDrop && !dropCoordinate)) {
         setPickupPoint(toPointArray(pickupCoordinate));
         setDropPoint(toPointArray(dropCoordinate));
@@ -152,10 +218,13 @@ export default function CompactMap({
   }, [currentLocation, dropPoint, pickupPoint]);
 
   const viewportPoints = useMemo(() => {
+    if (pickupPoint && simulatedDrivers.length > 0) {
+      return [pickupPoint, ...simulatedDrivers.map(d => [d.simLat, d.simLon])];
+    }
     if (routePath.length > 1) return routePath;
     if (pickupPoint && dropPoint) return [pickupPoint, dropPoint];
     return [pickupPoint, dropPoint].filter(Boolean);
-  }, [dropPoint, pickupPoint, routePath]);
+  }, [dropPoint, pickupPoint, routePath, simulatedDrivers]);
 
   const tileUrl = theme === "dark" ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
@@ -165,35 +234,103 @@ export default function CompactMap({
       const selection = await reverseGeocodeCoordinate(lat, lon);
       onMapLocationSelect({ ...selection, target: selectionTarget });
       setSelectionStatus(`${selectionTarget === "pickup" ? "Pickup" : "Drop"} pinned`);
-      window.setTimeout(() => setSelectionStatus(""), 1800);
+      window.setTimeout(() => setSelectionStatus(""), 1000);
     } catch {
       setSelectionStatus("Try another point");
-      window.setTimeout(() => setSelectionStatus(""), 1600);
+      window.setTimeout(() => setSelectionStatus(""), 1000);
     }
   };
 
   return (
-    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3 }} className="relative overflow-hidden rounded-[1.6rem] bg-white">
+    <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-200">
+      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] flex bg-white rounded-full p-1 shadow border border-slate-200">
+        {[3, 5, 10].map(r => (
+          <button
+            key={r}
+            type="button"
+            onClick={() => onRadiusChange?.(r)}
+            className={`px-3 py-1 rounded-full text-xs font-bold ${
+              searchRadiusKm === r 
+              ? "bg-slate-900 text-white" 
+              : "text-slate-600"
+            }`}
+          >
+            {r}KM
+          </button>
+        ))}
+      </div>
+
       {selectionStatus ? (
-        <div className="absolute left-4 top-4 z-[500] rounded-full bg-white/92 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm">
+        <div className="absolute left-4 top-16 z-[500] rounded bg-slate-900 px-2 py-1 text-[10px] font-bold text-white">
           {selectionStatus}
         </div>
       ) : null}
+
       <div className={`${heightClass} w-full`}>
-        <MapContainer center={center} zoom={11} zoomControl={false} attributionControl={false} className="h-full w-full">
+        <MapContainer center={center} zoom={14} zoomControl={false} attributionControl={false} className="h-full w-full">
           <TileLayer url={tileUrl} />
           <MapViewport points={viewportPoints} center={center} />
           <MapSelectionHandler enabled={Boolean(onMapLocationSelect)} onSelect={handleMapSelect} />
-          {currentLocation?.lat && currentLocation?.lon ? <Marker position={[currentLocation.lat, currentLocation.lon]} icon={userIcon}><Tooltip direction="top" offset={[0, -8]}>You</Tooltip></Marker> : null}
-          {pickupPoint ? <Marker position={pickupPoint} icon={pickupIcon}><Tooltip direction="top" offset={[0, -8]}>Pickup</Tooltip></Marker> : null}
-          {dropPoint ? <Marker position={dropPoint} icon={dropIcon}><Tooltip direction="top" offset={[0, -8]}>Drop</Tooltip></Marker> : null}
-          {routePath.length > 1 ? <Polyline positions={routePath} pathOptions={{ color: "#0f172a", weight: 5, opacity: 0.85 }} /> : null}
+          
+          {pickupPoint && (
+            <Circle 
+              center={pickupPoint} 
+              radius={searchRadiusKm * 1000} 
+              pathOptions={{ color: '#f59e0b', weight: 1, fillOpacity: 0.05 }}
+            />
+          )}
+
+          {currentLocation?.lat && currentLocation?.lon && (
+            <Marker position={[currentLocation.lat, currentLocation.lon]} icon={userIcon}>
+              <Tooltip direction="top">You</Tooltip>
+            </Marker>
+          )}
+
+          {pickupPoint && (
+            <Marker position={pickupPoint} icon={pickupIcon}>
+              <Tooltip direction="top" permanent>Pickup</Tooltip>
+            </Marker>
+          )}
+
+          {dropPoint && (
+            <Marker position={dropPoint} icon={dropIcon}>
+              <Tooltip direction="top">Drop</Tooltip>
+            </Marker>
+          )}
+
+          {simulatedDrivers.map((driver, idx) => (
+            <Marker 
+              key={driver.id || idx} 
+              position={[driver.simLat, driver.simLon]} 
+              icon={createDriverIcon(driver.vehicleType, idx === 0)}
+            >
+              <Tooltip direction="top">
+                <div className="p-1 min-w-[80px]">
+                  <p className="font-bold text-slate-900 text-xs">{driver.name}</p>
+                  <p className="text-[10px] text-slate-500">{driver.etaMinutes} min</p>
+                </div>
+              </Tooltip>
+            </Marker>
+          ))}
+
+          {routePath.length > 1 && (
+            <Polyline 
+              positions={routePath} 
+              pathOptions={{ color: "#0f172a", weight: 3, opacity: 0.6 }} 
+            />
+          )}
         </MapContainer>
       </div>
-      <div className="pointer-events-none absolute bottom-4 left-4 flex gap-2">
-        {pickupPoint ? <span className="rounded-full bg-white/88 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm">Pickup</span> : null}
-        {dropPoint ? <span className="rounded-full bg-white/88 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-700 shadow-sm">Drop</span> : null}
+
+      <div className="pointer-events-none absolute bottom-4 left-4 right-4 flex justify-between items-end">
+        <div className="flex gap-2">
+          {simulatedDrivers.length > 0 && (
+            <span className="bg-emerald-600 text-white px-2 py-1 rounded-full text-[10px] font-bold">
+              {simulatedDrivers.length} Nearby
+            </span>
+          )}
+        </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

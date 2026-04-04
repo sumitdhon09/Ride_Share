@@ -53,7 +53,8 @@ public class SecurityConfig {
                 "/ws/**",
                 "/ws-sockjs/**",
                 "/rides/estimate",
-                "/rides/drivers/nearby"
+                "/rides/drivers/nearby",
+                "/api/drivers/nearby"
         ));
 
         if (h2ConsoleEnabled) {
