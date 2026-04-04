@@ -42,6 +42,7 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http, Jwtfilter jwtfilter) throws Exception {
         List<String> publicPaths = new ArrayList<>(List.of(
                 "/",
+                "/error",
                 "/index.html",
                 "/assets/**",
                 "/favicon.ico",
@@ -60,6 +61,7 @@ public class SecurityConfig {
         if (h2ConsoleEnabled) {
             publicPaths.add("/h2-console/**");
         }
+
         if (appSecurityProperties.isSwaggerEnabled()) {
             publicPaths.add("/swagger-ui.html");
             publicPaths.add("/swagger-ui/**");
@@ -75,7 +77,8 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(publicPaths.toArray(String[]::new)).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                        .anyRequest().authenticated())
+                        .anyRequest().authenticated()
+                )
                 .addFilterBefore(jwtfilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
