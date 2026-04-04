@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
+    <data-source source="LOCAL" name="rideshare@localhost" uuid="f71802b0-3f95-43c7-8483-a05ac7384f2e">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <imported>true</imported>
+      <remarks>$PROJECT_DIR$/ridesharelive-backend-main/src/main/resources/application-postgres.properties</remarks>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5432/rideshare</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+    <data-source source="LOCAL" name="0@localhost" uuid="9efeb24a-18d9-4f15-a380-f2ae011b02ed">
+      <driver-ref>redis</driver-ref>
+      <synchronize>true</synchronize>
+      <imported>true</imported>
+      <remarks>$PROJECT_DIR$/ridesharelive-backend-main/src/main/resources/application-postgres.example.properties</remarks>
+      <jdbc-driver>jdbc.RedisDriver</jdbc-driver>
+      <jdbc-url>jdbc:redis://localhost:6379/0</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+    <data-source source="LOCAL" name="Create a modern, premium ride-sharing web application with smooth animations inspired by high-end websites like Sheryians Coding School.  🎨 DESIGN STYLE: - Soft peach gradient accents (#FF9A9E to #FECFEF) - Light ivory/white background with glassmorphism UI - Rounded corners (16px–24px), soft shadows, clean spacing - Professional startup-level design (not cartoonish)  ⚡ CORE ANIMATION SYSTEM:  1. Smooth Scrolling: - Implement smooth scrolling with subtle parallax effects (Locomotive Scroll or equivalent) - Elements should move at different speeds to create depth  2. Page Transitions: - Use smooth transitions between pages (Framer Motion style) - Effects: fade + slide + slight scale - Login → Dashboard transition should feel seamless  3. Cursor Interaction (Desktop Only): - Add custom cursor with hover effects - Buttons and cards should have magnetic or scale interaction  4. Text Reveal Animation: - Animate headings using split text reveal (letter/word animation) - Smooth entrance for hero text  5. Hover &amp; Depth Effects: - Cards lift on hover with shadow increase - Buttons scale slightly with smooth easing - Add subtle glow on important elements  6. Micro Interactions: - Input focus glow - OTP input auto-focus and smooth transition - Button click ripple or feedback - Toggle switches with smooth transitions  7. Glassmorphism UI: - Use blur (backdrop-blur) with transparent cards - Maintain soft layered depth  🚗 RIDE-SHARE SPECIFIC UI:  Homepage: - Hero section with 3D car or illustration and floating map pins - CTA: Book Ride, Become Driver - Feature cards (Fast Booking, Live Tracking, Secure Payments) - Scroll-based reveal animations for each section (fade-up + stagger)  Login Page: - Clean split layout - Right: login form (email, password, role selection) - Left: branding panel with:   - App name + tagline (Safe • Fast • Verified)   - 3 key features - Add scale + blur animation on load  Booking UI: - Glassmorphism booking card with pickup/drop - Fare estimate and ETA - Smooth card transitions - Optional subtle route animation (moving car on line)  Dashboard: - Rider → Light theme - Driver/Admin → Dark theme with peach highlights - Clean SaaS layout with cards and analytics  🧠 ADVANCED UX (BONUS FEATURES):  1. Skeleton Loading: - Add shimmer loading placeholders for cards, ride data, and dashboard widgets  2. Notification System: - Toast notifications with slide-in animation and auto-dismiss - Example: Ride booked, Driver arriving  3. Map Motion Feedback: - Simulate moving car along route line for better UX feedback  4. Stagger Animations: - Elements appear with slight delay for smooth flow (especially in lists/cards)  ⚡ PERFORMANCE RULES: - Keep animations smooth and lightweight - Avoid excessive GSAP usage everywhere - Disable heavy animations on mobile devices - Optimize for fast load and responsiveness  🚫 AVOID: - Over-animations - Cartoon-style graphics - Too many bright colors - Cluttered UI  🎯 GOAL: Build a visually stunning, smooth, and modern ride-sharing web app that feels premium, interactive, and production-ready — similar to top startup websites." uuid="95454292-c78b-4064-b156-8bc1dade04eb">
+      <driver-ref>h2.unified</driver-ref>
+      <synchronize>true</synchronize>
+      <imported>true</imported>
+      <remarks>$PROJECT_DIR$/ridesharelive-backend-main/src/main/resources/application-local.properties</remarks>
+      <jdbc-driver>org.h2.Driver</jdbc-driver>
+      <jdbc-url>jdbc:h2:mem:rideshare;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE</jdbc-url>
+      <jdbc-additional-properties>
+        <property name="com.intellij.clouds.kubernetes.db.host.port" />
+        <property name="com.intellij.clouds.kubernetes.db.enabled" value="false" />
+        <property name="com.intellij.clouds.kubernetes.db.container.port" />
+      </jdbc-additional-properties>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
+  </component>
+</project>

@@ -30,6 +30,7 @@ com\example\backend\security\JwtUtil.class
 com\example\backend\service\OtpEmailService.class
 com\example\backend\service\OtpEmailService$MailDeliveryResult.class
 com\example\backend\service\SignupOtpService$VerificationResult.class
+com\example\backend\controller\DriverController.class
 com\example\backend\dto\admin\AdminActionRequest.class
 com\example\backend\entity\AdminComplaint$AdminComplaintBuilder.class
 com\example\backend\dto\admin\AdminLiveMapResponse$RideMarker.class
