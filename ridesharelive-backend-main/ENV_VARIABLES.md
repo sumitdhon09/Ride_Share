@@ -11,7 +11,7 @@ Create a `.env.ps1` file:
 [Environment]::SetEnvironmentVariable("MAIL_PROVIDER", "resend", "User")
 
 # Set your Resend API Key (get from https://dashboard.resend.com)
-[Environment]::SetEnvironmentVariable("RESEND_API_KEY", "re_Ek7fRCNQ_2qqB9FBXwVsahsAS4McrhmBw", "User")
+[Environment]::SetEnvironmentVariable("RESEND_API_KEY", "re_your_api_key_here", "User")
 
 # Optional: Set custom from address (must be verified in Resend)
 [Environment]::SetEnvironmentVariable("RESEND_FROM_ADDRESS", "noreply@yourdomain.com", "User")
@@ -53,7 +53,7 @@ source ~/.bashrc
 Or set them directly:
 ```bash
 export MAIL_PROVIDER=resend
-export RESEND_API_KEY=re_Ek7fRCNQ_2qqB9FBXwVsahsAS4McrhmBw
+export RESEND_API_KEY=re_your_api_key_here
 ```
 
 ## In Docker

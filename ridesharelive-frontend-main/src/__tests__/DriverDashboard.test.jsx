@@ -37,7 +37,7 @@ describe("DriverDashboard", () => {
 
     render(<DriverDashboard />);
 
-    const acceptButton = await screen.findByRole("button", { name: /accept/i });
+    const acceptButton = await screen.findByRole("button", { name: /^accept ride$/i });
     await userEvent.click(acceptButton);
 
     await waitFor(() => {

@@ -17,7 +17,7 @@ Resend is a modern email service that replaces traditional SMTP for sending tran
 1. Go to [Resend Dashboard](https://dashboard.resend.com)
 2. Navigate to **API Keys** section
 3. Create a new API key or copy your existing one
-4. The key starts with `re_` (e.g., `re_Ek7fRCNQ_2qqB9FBXwVsahsAS4McrhmBw`)
+4. The key starts with `re_` (e.g., `re_your_api_key_here`)
 
 ## Step 2: Set Up Environment Variables
 

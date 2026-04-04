@@ -98,6 +98,24 @@ public class AdminLiveUpdateService {
         publishOverviewSnapshot();
     }
 
+    public void publishDriverUpdate(User driver) {
+        if (driver == null) {
+            return;
+        }
+
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("driverId", driver.getId());
+        payload.put("kycStatus", driver.getKycStatus() == null ? "" : driver.getKycStatus());
+        payload.put("online", Boolean.TRUE.equals(driver.getOnline()));
+        payload.put("assignedZone", driver.getAssignedZone() == null ? "" : driver.getAssignedZone());
+
+        messagingTemplate.convertAndSend(
+                "/topic/admin/drivers",
+                new AdminLiveUpdatePayload("DRIVER_STATUS", payload, Instant.now())
+        );
+        publishOverviewSnapshot();
+    }
+
     public void publishSafetyUpdate(AdminComplaint complaint) {
         if (complaint == null) {
             return;

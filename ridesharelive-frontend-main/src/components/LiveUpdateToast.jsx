@@ -12,14 +12,14 @@ function resolveToastTheme() {
 
 function toastToneClass(tone, theme) {
   const lightMap = {
-    info: "border-cyan-200/80 bg-cyan-50/90 text-cyan-900 shadow-[0_24px_60px_-36px_rgba(8,145,178,0.55)]",
-    success: "border-emerald-200/80 bg-emerald-50/92 text-emerald-900 shadow-[0_24px_60px_-36px_rgba(5,150,105,0.55)]",
-    warning: "border-amber-200/80 bg-amber-50/92 text-amber-900 shadow-[0_24px_60px_-36px_rgba(217,119,6,0.5)]",
+    info: "border-rose-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(255,236,230,0.92),rgba(254,234,244,0.94))] text-rose-950 shadow-[0_24px_60px_-36px_rgba(251,113,133,0.35)]",
+    success: "border-emerald-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(240,253,244,0.94),rgba(255,244,239,0.92))] text-emerald-950 shadow-[0_24px_60px_-36px_rgba(16,185,129,0.28)]",
+    warning: "border-amber-200/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.92),rgba(255,251,235,0.94),rgba(255,236,230,0.92))] text-amber-950 shadow-[0_24px_60px_-36px_rgba(245,158,11,0.26)]",
   };
   const darkMap = {
-    info: "border-cyan-400/20 bg-slate-950/92 text-cyan-100 shadow-[0_28px_80px_-42px_rgba(34,211,238,0.45)]",
-    success: "border-emerald-400/20 bg-slate-950/92 text-emerald-100 shadow-[0_28px_80px_-42px_rgba(16,185,129,0.45)]",
-    warning: "border-amber-400/20 bg-slate-950/92 text-amber-100 shadow-[0_28px_80px_-42px_rgba(245,158,11,0.4)]",
+    info: "border-rose-300/20 bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(30,27,39,0.95))] text-rose-100 shadow-[0_28px_80px_-42px_rgba(251,113,133,0.34)]",
+    success: "border-emerald-300/20 bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(19,37,31,0.95))] text-emerald-100 shadow-[0_28px_80px_-42px_rgba(16,185,129,0.3)]",
+    warning: "border-amber-300/20 bg-[linear-gradient(145deg,rgba(15,23,42,0.95),rgba(53,37,23,0.95))] text-amber-100 shadow-[0_28px_80px_-42px_rgba(245,158,11,0.28)]",
   };
   const map = theme === "dark" ? darkMap : lightMap;
   return map[tone] || map.info;

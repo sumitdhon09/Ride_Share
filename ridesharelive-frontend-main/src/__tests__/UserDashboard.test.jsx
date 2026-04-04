@@ -31,4 +31,32 @@ describe("UserDashboard", () => {
     expect(screen.getByRole("heading", { name: /^ride$/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /activity/i })).toBeInTheDocument();
   });
+
+  it("shows dedicated live trip page when a ride is active", async () => {
+    apiRequest.mockResolvedValue([
+      {
+        id: 501,
+        status: "REQUESTED",
+        pickupLocation: "Kharadi",
+        dropLocation: "Viman Nagar",
+        fare: 220,
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    render(
+      <UserDashboard
+        session={{
+          name: "Aarav Singh",
+          role: "RIDER",
+          token: "user-token",
+          userId: "42",
+        }}
+      />
+    );
+
+    expect(await screen.findByRole("heading", { name: /track your ride/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/current ride/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: /^ride$/i })).not.toBeInTheDocument();
+  });
 });

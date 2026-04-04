@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { motion } from "motion/react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { apiRequest } from "../api";
 import ActiveTripCard from "../components/ActiveTripCard";
 import DriverHeader from "../components/DriverHeader";
@@ -7,6 +8,7 @@ import DriverMapPanel from "../components/DriverMapPanel";
 import DriverStatusCard from "../components/DriverStatusCard";
 import EarningsCard from "../components/EarningsCard";
 import LiveUpdateToast from "../components/LiveUpdateToast";
+import OpsActionButton from "../components/OpsActionButton";
 import RecentTripsTable from "../components/RecentTripsTable";
 import RideRequestCard from "../components/RideRequestCard";
 
@@ -64,8 +66,8 @@ const demoDriverQueueEnabled =
   String(import.meta.env.VITE_ENABLE_DEMO_DRIVER_QUEUE || "").toLowerCase() === "true";
 
 function DriverDashboardSkeleton({ isDark }) {
-  const cardClass = isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96";
-  const panelClass = isDark ? "border-slate-800 bg-slate-900/70" : "border-slate-200 bg-slate-50";
+  const cardClass = isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96";
+  const panelClass = isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/78" : "border-slate-200 bg-slate-50";
 
   return (
     <div className="space-y-5">
@@ -171,13 +173,15 @@ export default function DriverDashboard() {
     return () => observer.disconnect();
   }, []);
 
-  const fetchRides = useCallback(async () => {
+  const fetchRides = useCallback(async ({ silent = false } = {}) => {
     if (!token) {
       setError("Please login to access driver dashboard.");
       setLoading(false);
       return;
     }
-    setLoading(true);
+    if (!silent) {
+      setLoading(true);
+    }
     try {
       const [activeResult, historyResult] = await Promise.allSettled([
         apiRequest("/rides/requested", "GET", null, token),
@@ -211,7 +215,9 @@ export default function DriverDashboard() {
     } catch (requestError) {
       setError(requestError.message || "Failed to load driver rides.");
     } finally {
-      setLoading(false);
+      if (!silent) {
+        setLoading(false);
+      }
     }
   }, [token]);
 
@@ -224,11 +230,11 @@ export default function DriverDashboard() {
       return;
     }
     const interval = window.setInterval(() => {
-      fetchRides();
+      fetchRides({ silent: true });
     }, 5000);
     const handleVisibility = () => {
       if (document.visibilityState === "visible") {
-        fetchRides();
+        fetchRides({ silent: true });
       }
     };
     window.addEventListener("focus", handleVisibility);
@@ -264,7 +270,18 @@ export default function DriverDashboard() {
         if (typeof ride.id === "number") {
           const payload = status === "ACCEPTED" ? { status, driverId: myUserId } : { status, otp };
           await apiRequest(`/rides/status/${ride.id}`, "POST", payload, token);
-          await fetchRides();
+          setActiveRides((previous) =>
+            previous.map((item) =>
+              String(item.id) === String(ride.id)
+                ? {
+                    ...item,
+                    status,
+                    driverId: status === "ACCEPTED" ? myUserId : item.driverId,
+                  }
+                : item
+            )
+          );
+          await fetchRides({ silent: true });
         }
         setLiveToast({ id: Date.now(), message: `Ride ${status.toLowerCase()}.`, tone: "success" });
       } catch (requestError) {
@@ -381,7 +398,7 @@ export default function DriverDashboard() {
   void shiftTick;
 
   return (
-    <section className={isDark ? "min-h-screen bg-[linear-gradient(180deg,#020617_0%,#06111f_100%)] text-slate-100" : "min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] text-slate-900"}>
+    <section className={isDark ? "min-h-screen bg-[radial-gradient(circle_at_top,rgba(20,35,63,0.38),transparent_26%),linear-gradient(180deg,#020611_0%,#071220_52%,#0a1527_100%)] text-slate-100" : "min-h-screen bg-[linear-gradient(180deg,#f8fbff_0%,#eef4ff_100%)] text-slate-900"}>
       <LiveUpdateToast toast={liveToast} />
       <div className="mx-auto max-w-[108rem] space-y-6 px-4 pb-10 sm:px-6 xl:px-8">
         <DriverHeader
@@ -394,9 +411,9 @@ export default function DriverDashboard() {
           onOpenNotifications={() => setNotificationsOpen(true)}
           isDark={isDark}
         />
-        {error ? <div className={`rounded-[1.4rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-rose-400/20 bg-rose-400/10 text-rose-200" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{error}</div> : null}
+        {error ? <div className={`rounded-[1.4rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-rose-400/18 bg-rose-400/[0.08] text-rose-100" : "border-rose-200 bg-rose-50 text-rose-700"}`}>{error}</div> : null}
 
-        <div className={`grid gap-3 rounded-[1.5rem] border px-4 py-4 sm:grid-cols-3 ${isDark ? "border-slate-800 bg-slate-950/80" : "border-slate-200 bg-white/90"}`}>
+        <div className={`grid gap-3 rounded-[1.5rem] border px-4 py-4 sm:grid-cols-3 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.92),rgba(9,18,34,0.86))]" : "border-slate-200 bg-white/90"}`}>
           <div>
             <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Driver workspace</p>
             <p className={`mt-1 text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{availabilityMode === "ONLINE" ? "Ready for incoming rides" : "Offline and hidden from requests"}</p>
@@ -425,7 +442,7 @@ export default function DriverDashboard() {
                 onReject={() => handleRejectRequest(topRequest)}
                 isDark={isDark}
               />
-              <section className={`rounded-[1.4rem] border p-4 ${isDark ? "border-slate-800 bg-slate-950/82" : "border-slate-200 bg-white/96"}`}>
+              <section className={`rounded-[1.4rem] border p-4 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.92),rgba(9,18,34,0.86))]" : "border-slate-200 bg-white/96"}`}>
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className={`text-[11px] font-semibold uppercase tracking-[0.18em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Open requests</p>
@@ -441,7 +458,7 @@ export default function DriverDashboard() {
                         initial={{ opacity: 0, y: 14 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: 0.22, delay: index * 0.04, ease: [0.22, 1, 0.36, 1] }}
-                        className={`rounded-[1.15rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/75" : "border-slate-200 bg-slate-50"}`}
+                        className={`rounded-[1.15rem] border px-4 py-3 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/78" : "border-slate-200 bg-slate-50"}`}
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div>
@@ -461,21 +478,12 @@ export default function DriverDashboard() {
                             {request.distanceKm || 0} km • INR {request.fare} • {request.paymentMode}
                           </div>
                           <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              onClick={() => handleAcceptRequest(request)}
-                              disabled={availabilityMode !== "ONLINE" || busyRideId === request.id}
-                              className="rounded-full bg-[linear-gradient(135deg,#22c55e,#06b6d4)] px-3 py-1.5 text-xs font-semibold text-slate-950 disabled:cursor-not-allowed disabled:opacity-60"
-                            >
+                            <OpsActionButton compact icon={CheckCircle2} variant="success" isDark={isDark} onClick={() => handleAcceptRequest(request)} disabled={availabilityMode !== "ONLINE" || busyRideId === request.id}>
                               {busyRideId === request.id ? "..." : "Accept"}
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRejectRequest(request)}
-                              className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${isDark ? "border-rose-400/20 bg-rose-400/10 text-rose-200" : "border-rose-200 bg-rose-50 text-rose-700"}`}
-                            >
+                            </OpsActionButton>
+                            <OpsActionButton compact icon={XCircle} variant="danger" isDark={isDark} onClick={() => handleRejectRequest(request)}>
                               Reject
-                            </button>
+                            </OpsActionButton>
                           </div>
                         </div>
                       </motion.div>
@@ -499,7 +507,7 @@ export default function DriverDashboard() {
 
           <div className="space-y-5 xl:sticky xl:top-24 xl:self-start">
             <DriverMapPanel pickup={currentRide?.pickupLocation || topRequest?.pickupLocation || ""} drop={currentRide?.dropLocation || topRequest?.dropLocation || ""} currentLocation={currentLocation} onCenterToUser={() => { if (!navigator.geolocation) return; navigator.geolocation.getCurrentPosition((position) => setCurrentLocation({ lat: position.coords.latitude, lon: position.coords.longitude }), () => {}); }} onRefresh={fetchRides} isDark={isDark} />
-            <div className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+            <div className={`rounded-[1.75rem] border p-5 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
               <div className="mb-4 flex items-center justify-between">
                 <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Ride timeline</p>
                 <label className={`flex items-center gap-2 text-sm ${isDark ? "text-slate-300" : "text-slate-700"}`}><input type="checkbox" checked={autoAssignEnabled} onChange={(event) => setAutoAssignEnabled(event.target.checked)} className="accent-cyan-400" />Auto assign</label>
@@ -518,11 +526,11 @@ export default function DriverDashboard() {
 
         {!loading ? <div className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
           <RecentTripsTable rides={history} isDark={isDark} />
-          <section className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+          <section className={`rounded-[1.75rem] border p-5 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
             <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Earnings summary</p>
             <div className="mt-4 grid gap-3">
               {[["Cash rides", "INR 820"], ["Online payments", "INR 1,940"], ["Bonuses", "INR 320"], ["Payout due", "INR 480"]].map(([label, value]) => (
-                <div key={label} className={`flex items-center justify-between rounded-[1.2rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}>
+                <div key={label} className={`flex items-center justify-between rounded-[1.2rem] border px-4 py-3 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}>
                   <span className="text-sm text-slate-500">{label}</span>
                   <span className={`text-sm font-semibold ${isDark ? "text-slate-100" : "text-slate-900"}`}>{value}</span>
                 </div>
@@ -533,22 +541,22 @@ export default function DriverDashboard() {
       </div>
       {notificationsOpen ? (
         <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-950/30 p-4 backdrop-blur-[2px]" onClick={() => setNotificationsOpen(false)}>
-          <div className={`w-full max-w-sm rounded-[1.75rem] border p-5 shadow-[0_30px_90px_-35px_rgba(15,23,42,0.35)] ${isDark ? "border-cyan-400/20 bg-slate-950/98" : "border-sky-200 bg-white"} `} onClick={(event) => event.stopPropagation()}>
+          <div className={`w-full max-w-sm rounded-[1.75rem] border p-5 shadow-[0_30px_90px_-35px_rgba(15,23,42,0.35)] ${isDark ? "border-cyan-400/20 bg-[linear-gradient(180deg,rgba(5,12,24,0.98),rgba(9,18,34,0.96))]" : "border-sky-200 bg-white"} `} onClick={(event) => event.stopPropagation()}>
             <div className="flex items-center justify-between">
               <div>
                 <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Notifications</p>
                 <h3 className={`mt-2 text-lg font-semibold ${isDark ? "text-slate-50" : "text-slate-900"}`}>Driver updates</h3>
               </div>
-              <button type="button" onClick={() => setNotificationsOpen(false)} className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${isDark ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              <OpsActionButton compact isDark={isDark} onClick={() => setNotificationsOpen(false)}>
                 Close
-              </button>
+              </OpsActionButton>
             </div>
             <div className="mt-4 space-y-3">
               <div className={`rounded-[1.1rem] border px-4 py-3 text-sm ${isDark ? "border-cyan-400/15 bg-cyan-400/8 text-cyan-100" : "border-sky-200 bg-sky-50 text-sky-800"}`}>
                 Notifications auto-open on every new request and trip update.
               </div>
               {notifications.length ? notifications.map((item) => (
-                <div key={item.id} className={`rounded-[1.1rem] border px-4 py-3 text-sm ${isDark ? "border-slate-800 bg-slate-900/80 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+                <div key={item.id} className={`rounded-[1.1rem] border px-4 py-3 text-sm ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                   {item.label}
                 </div>
               )) : (

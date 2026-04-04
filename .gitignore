@@ -2,4 +2,5 @@
 Ride-Share-main/
 ridesharelive-backend-main/data/
 ridesharelive-backend-main/*.log
+ridesharelive-backend-main/.env.smtp.local
 ridesharelive-frontend-main/*.err

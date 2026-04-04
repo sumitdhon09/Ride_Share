@@ -1,4 +1,6 @@
 import { motion } from "motion/react";
+import { CheckCircle2, PhoneCall, Play } from "lucide-react";
+import OpsActionButton from "./OpsActionButton";
 
 function TripStep({ label, active, done, isDark }) {
   return (
@@ -35,9 +37,9 @@ export default function ActiveTripCard({
 }) {
   if (!ride) {
     return (
-      <article className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+      <article className={`rounded-[1.75rem] border p-5 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
         <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Active trip</p>
-        <div className={`mt-4 rounded-[1.4rem] border border-dashed p-5 text-sm ${isDark ? "border-slate-700 bg-slate-900/70 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
+        <div className={`mt-4 rounded-[1.4rem] border border-dashed p-5 text-sm ${isDark ? "border-slate-700/70 bg-[#0d182b]/78 text-slate-400" : "border-slate-200 bg-slate-50 text-slate-500"}`}>
           No active trip.
         </div>
       </article>
@@ -47,7 +49,7 @@ export default function ActiveTripCard({
   const picked = ride.status === "PICKED";
 
   return (
-    <article className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+    <article className={`rounded-[1.75rem] border p-5 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
           <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Active trip</p>
@@ -55,7 +57,7 @@ export default function ActiveTripCard({
             {ride.pickupLocation} to {ride.dropLocation}
           </h3>
         </div>
-        <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-emerald-400/20 bg-emerald-400/10 text-emerald-300" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
+        <div className={`rounded-full border px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-emerald-400/18 bg-emerald-400/[0.08] text-emerald-100" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
           {ride.status}
         </div>
       </div>
@@ -63,57 +65,43 @@ export default function ActiveTripCard({
       <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr,0.9fr]">
         <div className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
-            <div className={`rounded-[1.3rem] border p-4 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}>
+            <div className={`rounded-[1.3rem] border p-4 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}>
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Pickup OTP</p>
               <input
                 value={pickupOtp}
                 onChange={(event) => onPickupOtpChange(event.target.value)}
                 placeholder="Enter pickup OTP"
-                className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
+                className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700/70 bg-[#0d1729] text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
               />
             </div>
-            <div className={`rounded-[1.3rem] border p-4 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}>
+            <div className={`rounded-[1.3rem] border p-4 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}>
               <p className="text-[10px] uppercase tracking-[0.18em] text-slate-500">Drop OTP</p>
               <input
                 value={dropOtp}
                 onChange={(event) => onDropOtpChange(event.target.value)}
                 placeholder="Enter drop OTP"
-                className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700 bg-slate-950 text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
+                className={`mt-3 w-full rounded-xl border px-3 py-3 text-sm outline-none ${isDark ? "border-slate-700/70 bg-[#0d1729] text-slate-100" : "border-slate-200 bg-white text-slate-900"}`}
               />
             </div>
           </div>
 
           <div className="flex flex-wrap gap-3">
             {!picked ? (
-              <button
-                type="button"
-                onClick={onMarkPicked}
-                disabled={busy}
-                className="rounded-[1.2rem] bg-cyan-500 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
-              >
+              <OpsActionButton icon={Play} variant="primary" isDark={isDark} onClick={onMarkPicked} disabled={busy}>
                 Start Trip
-              </button>
+              </OpsActionButton>
             ) : (
-              <button
-                type="button"
-                onClick={onCompleteRide}
-                disabled={busy}
-                className="rounded-[1.2rem] bg-lime-400 px-5 py-3 text-sm font-semibold text-slate-950 disabled:opacity-60"
-              >
+              <OpsActionButton icon={CheckCircle2} variant="success" isDark={isDark} onClick={onCompleteRide} disabled={busy}>
                 Complete Trip
-              </button>
+              </OpsActionButton>
             )}
-            <button
-              type="button"
-              onClick={onCallRider}
-              className={`rounded-[1.2rem] border px-5 py-3 text-sm font-semibold ${isDark ? "border-slate-700 bg-slate-900 text-slate-100" : "border-slate-200 bg-slate-50 text-slate-900"}`}
-            >
+            <OpsActionButton icon={PhoneCall} isDark={isDark} onClick={onCallRider}>
               Contact Rider
-            </button>
+            </OpsActionButton>
           </div>
         </div>
 
-        <div className={`rounded-[1.4rem] border p-4 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}>
+        <div className={`rounded-[1.4rem] border p-4 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}>
           <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Trip progress</p>
           <div className="mt-4 space-y-4">
             <TripStep label="Ride accepted" active done isDark={isDark} />

@@ -1,3 +1,4 @@
+import { memo } from "react";
 import { MapContainer, Marker, Popup, TileLayer, CircleMarker, Polyline } from "react-leaflet";
 
 const INDIA_CENTER = [20.5937, 78.9629];
@@ -12,22 +13,26 @@ function buildRouteLine(ride) {
   ];
 }
 
-export default function LiveRideMapCard({ mapData, isDark = true }) {
+function LiveRideMapCard({ mapData, isDark = true }) {
   const hasMapData = Boolean(mapData?.drivers?.length || mapData?.rides?.length || mapData?.sosAlerts?.length);
 
   return (
-    <section className={`relative overflow-hidden rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+    <section className={`relative overflow-hidden rounded-[1.75rem] border p-5 ${
+      isDark
+        ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.92))] shadow-[0_26px_60px_-46px_rgba(8,15,31,0.96)]"
+        : "border-slate-200 bg-white/96"
+    }`}>
       <div className="flex items-center justify-between gap-3">
         <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Live operations</p>
         <div className="flex flex-wrap gap-2 text-[11px]">
-          <span className={`rounded-full px-2 py-1 ${isDark ? "bg-slate-900 text-slate-300" : "bg-slate-100 text-slate-700"}`}>{mapData?.drivers?.length || 0} drivers</span>
-          <span className="rounded-full bg-emerald-500/10 px-2 py-1 text-emerald-300">{mapData?.rides?.length || 0} rides</span>
-          <span className="rounded-full bg-rose-500/10 px-2 py-1 text-rose-300">{mapData?.sosAlerts?.length || 0} SOS</span>
+          <span className={`rounded-full px-2 py-1 ${isDark ? "border border-slate-700/70 bg-[#0f1a2d] text-slate-300" : "bg-slate-100 text-slate-700"}`}>{mapData?.drivers?.length || 0} drivers</span>
+          <span className={`rounded-full px-2 py-1 ${isDark ? "border border-teal-400/18 bg-teal-400/[0.08] text-teal-100" : "bg-emerald-500/10 text-emerald-700"}`}>{mapData?.rides?.length || 0} rides</span>
+          <span className={`rounded-full px-2 py-1 ${isDark ? "border border-rose-400/18 bg-rose-400/[0.08] text-rose-100" : "bg-rose-500/10 text-rose-700"}`}>{mapData?.sosAlerts?.length || 0} SOS</span>
         </div>
       </div>
-      <div className={`mt-4 overflow-hidden rounded-[1.4rem] border ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+      <div className={`mt-4 overflow-hidden rounded-[1.4rem] border ${isDark ? "border-[rgba(41,56,83,0.82)]" : "border-slate-200"}`}>
         {!hasMapData ? (
-          <div className={`grid h-72 place-items-center text-sm ${isDark ? "bg-slate-900 text-slate-400" : "bg-slate-50 text-slate-500"}`}>
+          <div className={`grid h-72 place-items-center text-sm ${isDark ? "bg-[#0d182b] text-slate-400" : "bg-slate-50 text-slate-500"}`}>
             Live map data unavailable.
           </div>
         ) : (
@@ -64,3 +69,5 @@ export default function LiveRideMapCard({ mapData, isDark = true }) {
     </section>
   );
 }
+
+export default memo(LiveRideMapCard);

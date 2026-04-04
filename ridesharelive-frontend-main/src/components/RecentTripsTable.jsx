@@ -1,10 +1,10 @@
 export default function RecentTripsTable({ rides, isDark = true }) {
   return (
-    <section className={`rounded-[1.75rem] border p-5 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+    <section className={`rounded-[1.75rem] border p-5 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
       <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Recent trips</p>
-      <div className={`mt-4 overflow-hidden rounded-[1.2rem] border ${isDark ? "border-slate-800" : "border-slate-200"}`}>
-        <table className={`min-w-full divide-y text-left text-sm ${isDark ? "divide-slate-800" : "divide-slate-200"}`}>
-          <thead className={isDark ? "bg-slate-900/80 text-slate-400" : "bg-slate-50 text-slate-500"}>
+      <div className={`mt-4 overflow-hidden rounded-[1.2rem] border ${isDark ? "border-[rgba(41,56,83,0.82)]" : "border-slate-200"}`}>
+        <table className={`min-w-full divide-y text-left text-sm ${isDark ? "divide-[rgba(41,56,83,0.82)]" : "divide-slate-200"}`}>
+          <thead className={isDark ? "bg-[#0d182b]/86 text-slate-400" : "bg-slate-50 text-slate-500"}>
             <tr>
               <th className="px-4 py-3 font-medium">Route</th>
               <th className="px-4 py-3 font-medium">Status</th>
@@ -12,9 +12,9 @@ export default function RecentTripsTable({ rides, isDark = true }) {
               <th className="px-4 py-3 font-medium">Payment</th>
             </tr>
           </thead>
-          <tbody className={isDark ? "divide-y divide-slate-800 bg-slate-950/60 text-slate-200" : "divide-y divide-slate-200 bg-white text-slate-700"}>
+          <tbody className={isDark ? "divide-y divide-[rgba(41,56,83,0.82)] bg-[#081221]/74 text-slate-200" : "divide-y divide-slate-200 bg-white text-slate-700"}>
             {rides.length > 0 ? rides.slice(0, 5).map((ride) => (
-              <tr key={ride.id} className={`transition ${isDark ? "hover:bg-slate-900/80" : "hover:bg-slate-50"}`}>
+              <tr key={ride.id} className={`transition ${isDark ? "hover:bg-[#101b2f]/80" : "hover:bg-slate-50"}`}>
                 <td className="px-4 py-3">{ride.pickupLocation} to {ride.dropLocation}</td>
                 <td className="px-4 py-3">{ride.status}</td>
                 <td className="px-4 py-3">INR {ride.fare}</td>

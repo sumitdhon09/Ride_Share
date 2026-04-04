@@ -179,7 +179,7 @@ export async function apiRequest(path, method = "GET", body = null, token = null
       if (payload && typeof payload === "object" && payload.message) {
         throw new Error(payload.message);
       }
-      throw new Error("You do not have access to this resource.");
+      throw new Error("Access denied. Login with the correct role for this page.");
     }
     if (typeof payload === "string" && payload.trim()) {
       throw new Error(payload);

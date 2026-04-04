@@ -236,7 +236,7 @@ public class AdminOpsService {
 
         driver.setLastActiveAt(Instant.now());
         User saved = userRepository.save(driver);
-        adminLiveUpdateService.publishOverviewSnapshot();
+        adminLiveUpdateService.publishDriverUpdate(saved);
         adminLiveUpdateService.publishZoneUpdate(zoneRepository.findAll());
         return mapDriverRow(saved, rideRepository.findAll());
     }

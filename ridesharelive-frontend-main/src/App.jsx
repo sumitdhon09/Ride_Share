@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, lazy, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import gsap from "gsap";
 import heroImage from "./assets/1.png";
@@ -6,15 +6,25 @@ import safetyImage from "./assets/2.png";
 import AuthModal from "./components/AuthModal";
 import LiveMapPanel from "./components/LiveMapPanel";
 import NotificationCenter from "./components/NotificationCenter";
-import ThreeBackdrop from "./components/ThreeBackdrop";
+import PremiumCursor from "./components/PremiumCursor";
+import PremiumLanding from "./components/PremiumLanding";
+import SettingsDrawer from "./components/settings/SettingsDrawer";
 import AdminDashboard from "./pages/AdminDashboard";
 import DriverDashboard from "./pages/DriverDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import { apiRequest } from "./api";
+import {
+  ACCENT_THEMES,
+  buildDefaultSettingsDrawerSnapshot,
+  buildSettingsDrawerSnapshot,
+  getStoredLocalSettings,
+  sanitizeLocalSettings,
+  splitSettingsDrawerSnapshot,
+} from "./utils/settingsDrawerState";
 import { calculateRideFare, RIDE_OPTIONS } from "./utils/farePricing";
 
-const MotionAside = motion.aside;
 const MotionDiv = motion.div;
+const ThreeBackdrop = lazy(() => import("./components/ThreeBackdrop"));
 const PAGE_SWITCH_EASE = [0.22, 1, 0.36, 1];
 
 const INITIAL_SESSION = {
@@ -26,7 +36,7 @@ const INITIAL_SESSION = {
 };
 
 const DEFAULT_PREFERENCES = {
-  theme: "peach-glow",
+  theme: "dark-theme",
   language: "en",
   fontScale: 100,
 };
@@ -168,6 +178,60 @@ function useRevealItems(rootRef, depsKey = "") {
   }, [depsKey, rootRef]);
 }
 
+function ThemeIcon({ dark }) {
+  if (dark) {
+    return (
+      <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <path
+          d="M21 12.8A9 9 0 1 1 11.2 3a7.2 7.2 0 0 0 9.8 9.8Z"
+          stroke="currentColor"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" stroke="currentColor" strokeWidth="1.8" />
+      <path
+        d="M12 2.75v2.1M12 19.15v2.1M4.85 4.85l1.5 1.5M17.65 17.65l1.5 1.5M2.75 12h2.1M19.15 12h2.1M4.85 19.15l1.5-1.5M17.65 6.35l1.5-1.5"
+        stroke="currentColor"
+        strokeWidth="1.8"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+function ThemeToggleSwitch({ dark, onToggle, label, className = "" }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={dark}
+      className={`theme-toggle theme-toggle--switch ${dark ? "is-dark" : "is-light"} ${className}`.trim()}
+      onClick={onToggle}
+      aria-label={label}
+      title={label}
+    >
+      <span className="theme-toggle__track" aria-hidden="true">
+        <span className="theme-toggle__mode theme-toggle__mode--light">
+          <ThemeIcon dark={false} />
+        </span>
+        <span className="theme-toggle__mode theme-toggle__mode--dark">
+          <ThemeIcon dark />
+        </span>
+        <span className="theme-toggle__thumb">
+          <ThemeIcon dark={dark} />
+        </span>
+      </span>
+    </button>
+  );
+}
+
 const TRANSLATIONS = {
   en: {
     header: {
@@ -227,8 +291,8 @@ const TRANSLATIONS = {
     },
     home: {
       badge: "Real-time mobility",
-      heroTitleA: "Rides that feel",
-      heroTitleB: "instant. Operations that stay calm.",
+      heroTitleA: "Rides that feel instant.",
+      heroTitleB: "Operations that stay calm.",
       heroBody:
         "One app for riders and drivers, designed for speed, clarity, and trust across every trip.",
       heroBookRideCta: "Book a Ride",
@@ -445,35 +509,6 @@ function getDefaultPageForRole(role) {
 
 function isPageAllowedForRole(page, role) {
   return getAccessibleWorkspaces(role).includes(page) || page === "home";
-}
-
-function getWorkspaceMeta(role) {
-  const accessibleWorkspaces = getAccessibleWorkspaces(role);
-  return accessibleWorkspaces.map((workspace) => {
-    if (workspace === "user") {
-      return {
-        key: "user",
-        label: "User dashboard",
-        description: "Booking dashboard, ride history, and account tools",
-      };
-    }
-    if (workspace === "driver") {
-      return {
-        key: "driver",
-        label: "Driver workspace",
-        description: "Driver tools and live ride operations",
-      };
-    }
-    return {
-      key: "admin",
-      label: "Admin workspace",
-      description: "Platform controls, approvals, and live analytics",
-    };
-  });
-}
-
-function getSwitchableWorkspaceMeta(role) {
-  return getWorkspaceMeta(role).filter((workspace) => workspace.key !== "user");
 }
 
 function normalizeLanguageCode(languageCode) {
@@ -1519,7 +1554,6 @@ export default function App() {
   const locomotiveRef = useRef(null);
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
-  const settingsPanelRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
   const [authMode, setAuthMode] = useState("login");
   const [preferredRole, setPreferredRole] = useState("RIDER");
@@ -1528,6 +1562,7 @@ export default function App() {
   const [showHeaderMenu, setShowHeaderMenu] = useState(false);
   const [preferences, setPreferences] = useState(getStoredPreferences);
   const [advancedSettings, setAdvancedSettings] = useState(getStoredAdvancedSettings);
+  const [panelLocalSettings, setPanelLocalSettings] = useState(getStoredLocalSettings);
   const [activeDashboardPage, setActiveDashboardPage] = useState(() => getDefaultPageForRole(getStoredSession().role));
   const [websiteLanguageOptions, setWebsiteLanguageOptions] = useState(() => [
     ...FALLBACK_TRANSLATION_LANGUAGE_OPTIONS,
@@ -1536,8 +1571,12 @@ export default function App() {
   const [userSettingsPrefix, setUserSettingsPrefix] = useState("");
 
   const currentPage = session.token ? activeDashboardPage : "home";
+  const isDriverOpsPage = currentPage === "driver";
+  const isAdminPage = currentPage === "admin";
+  const isOpsPage = isDriverOpsPage || isAdminPage;
+  const resolvedTheme = preferences.theme;
   const dictionary = TRANSLATIONS[preferences.language] || TRANSLATIONS.en;
-  const revealKey = `${currentPage}|${showAuth}|${showSettings}|${preferences.theme}`;
+  const revealKey = `${currentPage}|${showAuth}|${showSettings}|${resolvedTheme}`;
   useRevealItems(appRef, revealKey);
   const translationLanguageOptions = useMemo(() => websiteLanguageOptions, [websiteLanguageOptions]);
   const reduceMotion = useMemo(
@@ -1546,6 +1585,23 @@ export default function App() {
         ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
         : false,
     []
+  );
+  const settingsSnapshot = useMemo(
+    () =>
+      buildSettingsDrawerSnapshot({
+        session,
+        preferences,
+        advancedSettings,
+        localSettings: panelLocalSettings,
+      }),
+    [advancedSettings, panelLocalSettings, preferences, session]
+  );
+  const defaultSettingsSnapshot = useMemo(
+    () =>
+      buildDefaultSettingsDrawerSnapshot({
+        session,
+      }),
+    [session]
   );
 
   const syncGoogleLanguageOptions = useCallback(() => {
@@ -1613,12 +1669,12 @@ export default function App() {
 
   useEffect(() => {
     document.documentElement.style.setProperty("--app-font-scale", `${preferences.fontScale}%`);
-    document.documentElement.dataset.theme = preferences.theme;
+    document.documentElement.dataset.theme = resolvedTheme;
     document.documentElement.lang = preferences.language;
     localStorage.setItem("theme", preferences.theme);
     localStorage.setItem("language", preferences.language);
     localStorage.setItem("fontScale", String(preferences.fontScale));
-  }, [preferences.fontScale, preferences.language, preferences.theme]);
+  }, [preferences.fontScale, preferences.language, preferences.theme, resolvedTheme]);
 
   useEffect(() => {
     document.documentElement.dataset.page =
@@ -1647,6 +1703,25 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem("advancedSettings", JSON.stringify(sanitizeAdvancedSettings(advancedSettings)));
   }, [advancedSettings]);
+
+  useEffect(() => {
+    const safeLocalSettings = sanitizeLocalSettings(panelLocalSettings);
+    localStorage.setItem("rideshare:settings-drawer", JSON.stringify(safeLocalSettings));
+  }, [panelLocalSettings]);
+
+  useEffect(() => {
+    const safeLocalSettings = sanitizeLocalSettings(panelLocalSettings);
+    const accentPalette = ACCENT_THEMES[safeLocalSettings.appearance.accentTheme] || ACCENT_THEMES.cyan;
+
+    document.documentElement.style.setProperty("--accent", accentPalette.accent);
+    document.documentElement.style.setProperty("--accent-strong", accentPalette.accentStrong);
+    document.documentElement.style.setProperty("--settings-accent-soft", accentPalette.accentSoft);
+    document.documentElement.dataset.compactUi = safeLocalSettings.appearance.compactMode ? "true" : "false";
+    document.documentElement.style.setProperty(
+      "--settings-motion-scale",
+      String(Math.max(0.2, safeLocalSettings.appearance.animationIntensity / 100))
+    );
+  }, [panelLocalSettings]);
 
   useEffect(() => {
     if (!session.token) {
@@ -1718,7 +1793,7 @@ export default function App() {
     }
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (preferences.theme !== "dark-theme" || reduceMotion) {
+    if (resolvedTheme !== "dark-theme" || reduceMotion) {
       host.style.removeProperty("--spot-x");
       host.style.removeProperty("--spot-y");
       return undefined;
@@ -1742,7 +1817,76 @@ export default function App() {
       }
       window.removeEventListener("pointermove", handlePointerMove);
     };
-  }, [preferences.theme]);
+  }, [reduceMotion, resolvedTheme]);
+
+  useEffect(() => {
+    if (typeof window === "undefined" || reduceMotion) {
+      return undefined;
+    }
+
+    const pointerQuery = window.matchMedia("(hover: hover) and (pointer: fine)");
+    if (!pointerQuery.matches) {
+      return undefined;
+    }
+
+    const magneticNodes = Array.from(document.querySelectorAll("[data-magnetic]"));
+    const cleanup = magneticNodes.map((node) => {
+      const rawStrength = node.getAttribute("data-magnetic-strength");
+      const strength = rawStrength === null || rawStrength === "" ? 20 : Number(rawStrength);
+      if (!Number.isFinite(strength) || strength === 0) {
+        return () => {};
+      }
+
+      let rafId = null;
+
+      const resetTransform = () => {
+        node.style.transition = "transform 260ms cubic-bezier(0.22, 1, 0.36, 1)";
+        node.style.transform = "";
+      };
+
+      const handleMove = (event) => {
+        const rect = node.getBoundingClientRect();
+        const offsetX = ((event.clientX - (rect.left + rect.width / 2)) / rect.width) * strength * 2;
+        const offsetY = ((event.clientY - (rect.top + rect.height / 2)) / rect.height) * strength * 2;
+
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+
+        rafId = requestAnimationFrame(() => {
+          node.style.transition = "transform 120ms cubic-bezier(0.22, 1, 0.36, 1)";
+          node.style.transform = `translate3d(${offsetX.toFixed(2)}px, ${offsetY.toFixed(2)}px, 0) scale(1.01)`;
+        });
+      };
+
+      const handleLeave = () => {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        resetTransform();
+      };
+
+      node.addEventListener("pointermove", handleMove);
+      node.addEventListener("pointerleave", handleLeave);
+      node.addEventListener("pointerup", handleLeave);
+
+      return () => {
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+        }
+        node.removeEventListener("pointermove", handleMove);
+        node.removeEventListener("pointerleave", handleLeave);
+        node.removeEventListener("pointerup", handleLeave);
+        node.style.transform = "";
+        node.style.transition = "";
+      };
+    });
+
+    return () => {
+      cleanup.forEach((dispose) => dispose());
+    };
+  }, [currentPage, showAuth, showHeaderMenu, showSettings, reduceMotion, session.token]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1894,33 +2038,6 @@ export default function App() {
   }, [showHeaderMenu]);
 
   useEffect(() => {
-    if (!showSettings) {
-      return undefined;
-    }
-
-    const handlePointerDown = (event) => {
-      if (settingsPanelRef.current?.contains(event.target)) {
-        return;
-      }
-      setShowSettings(false);
-    };
-
-    const handleEscape = (event) => {
-      if (event.key === "Escape") {
-        setShowSettings(false);
-      }
-    };
-
-    document.addEventListener("pointerdown", handlePointerDown);
-    document.addEventListener("keydown", handleEscape);
-
-    return () => {
-      document.removeEventListener("pointerdown", handlePointerDown);
-      document.removeEventListener("keydown", handleEscape);
-    };
-  }, [showSettings]);
-
-  useEffect(() => {
     if (showAuth || showSettings) {
       setShowHeaderMenu(false);
     }
@@ -2001,8 +2118,43 @@ export default function App() {
     setActiveDashboardPage("home");
   };
 
-  const workspaceTabs = getWorkspaceMeta(session.role);
-  const switchableWorkspaceTabs = getSwitchableWorkspaceMeta(session.role);
+  const handleSaveSettings = async (drawerSnapshot) => {
+    // Split the premium drawer draft into app theme, backend-safe settings, and local-only preferences.
+    const nextSnapshot = splitSettingsDrawerSnapshot(drawerSnapshot);
+
+    setPreferences((previous) => ({
+      ...previous,
+      ...nextSnapshot.preferences,
+    }));
+    setAdvancedSettings((previous) =>
+      sanitizeAdvancedSettings({
+        ...previous,
+        ...nextSnapshot.advancedSettings,
+      })
+    );
+    setPanelLocalSettings(nextSnapshot.localSettings);
+    setSession((previous) => ({
+      ...previous,
+      name: nextSnapshot.sessionPatch.name,
+      email: nextSnapshot.sessionPatch.email,
+    }));
+
+    localStorage.setItem("name", nextSnapshot.sessionPatch.name);
+    localStorage.setItem("email", nextSnapshot.sessionPatch.email);
+    localStorage.setItem("phone", nextSnapshot.sessionPatch.phone);
+
+    setSettingsNotice("Settings saved.");
+  };
+
+  const handleDeleteAccountRequest = () => {
+    setAdvancedSettings((previous) =>
+      sanitizeAdvancedSettings({
+        ...previous,
+        deleteAccountRequested: true,
+      })
+    );
+    setSettingsNotice("Delete account request marked. Review will follow.");
+  };
 
   const changeLanguage = (event) => {
     setPreferences((previous) => ({
@@ -2011,32 +2163,50 @@ export default function App() {
     }));
   };
 
-  const toggleDarkTheme = () => {
+  const changeTheme = (nextTheme) => {
+    if (!AVAILABLE_THEMES.includes(nextTheme)) {
+      return;
+    }
+
     setPreferences((previous) => ({
       ...previous,
-      theme: previous.theme === "dark-theme" ? "urban-transport" : "dark-theme",
+      theme: nextTheme,
     }));
   };
 
-  const updateAdvancedSetting = (key, value) => {
-    setAdvancedSettings((previous) => ({
-      ...previous,
-      [key]: value,
-    }));
+  const toggleTheme = () => {
+    changeTheme(preferences.theme === "dark-theme" ? "peach-glow" : "dark-theme");
   };
 
-  const isDarkTheme = preferences.theme === "dark-theme";
-  const isOpsPage = currentPage === "driver" || currentPage === "admin";
+  const isDarkTheme = resolvedTheme === "dark-theme";
   const isOpsDark = isOpsPage && isDarkTheme;
+  const themeToggleLabel = isDarkTheme ? "Switch to light mode" : "Switch to dark mode";
+  const backdropTheme =
+    currentPage === "driver"
+      ? (isDarkTheme ? "driver-ops" : "peach-glow")
+      : currentPage === "admin"
+        ? (isDarkTheme ? "admin-ops" : "peach-glow")
+        : resolvedTheme;
+  const showBackdrop = currentPage === "home" || currentPage === "user" || currentPage === "driver" || currentPage === "admin";
 
   return (
     <div
       className={`${
-        isOpsPage
-          ? isOpsDark
-            ? "min-h-screen bg-slate-950 text-slate-100"
-            : "min-h-screen bg-slate-50 text-slate-900"
-          : `${isDarkTheme ? "landing-shell-dark text-slate-100" : "landing-shell-light text-slate-900"} mesh-bg min-h-screen`
+        isDriverOpsPage
+          ? `ops-shell min-h-screen ${
+              isDarkTheme
+                ? "bg-slate-950 text-slate-100"
+                : "bg-[linear-gradient(180deg,rgba(248,251,255,0.98),rgba(236,244,255,0.96))] text-slate-900"
+            }`
+          : isAdminPage
+            ? `ops-shell min-h-screen ${
+                isDarkTheme
+                  ? "bg-slate-950 text-slate-100"
+                  : "bg-[linear-gradient(180deg,rgba(248,251,255,0.98),rgba(236,244,255,0.96))] text-slate-900"
+              }`
+          : `premium-shell ${isDarkTheme ? "landing-shell" : "landing-shell-light"} mesh-bg min-h-screen ${
+              isDarkTheme ? "text-slate-100" : "text-slate-900"
+            }`
       }`}
       ref={appRef}
     >
@@ -2045,19 +2215,21 @@ export default function App() {
         aria-hidden="true"
         style={{ position: "fixed", left: "-9999px", top: "0", opacity: 0, pointerEvents: "none" }}
       />
-      {currentPage === "home" ? <ThreeBackdrop theme={preferences.theme} /> : null}
+      <PremiumCursor />
+      {showBackdrop ? (
+        <Suspense fallback={null}>
+          <ThreeBackdrop theme={backdropTheme} />
+        </Suspense>
+      ) : null}
       <div className="app-shell">
         <header
-          className={`sticky top-0 z-40 border-b backdrop-blur ${
+          className={`sticky top-0 z-40 border-b backdrop-blur-xl ${
             isOpsDark
-              ? "border-slate-800/90 bg-slate-950/92"
-              : isOpsPage
-                ? "border-slate-200/80 bg-white/88"
-              : isDarkTheme
-                ? "border-slate-800/60 bg-slate-950/70"
-                : "border-slate-200/70 bg-white/80"
+              ? "border-slate-800/90 bg-slate-950/88"
+              : "border-white/70 bg-white/72"
           }`}
           data-reveal="instant"
+          data-static-site-header
         >
           <div className={`mx-auto flex w-full items-center justify-between px-4 py-4 sm:px-6 ${isOpsPage ? "max-w-[96rem] xl:px-8" : "max-w-7xl lg:px-10"}`}>
             <button type="button" className="text-left brand-mark" onClick={handleBrandClick}>
@@ -2071,27 +2243,8 @@ export default function App() {
                 <span className="brand-mark__subtitle">{dictionary.header.subtitle}</span>
               </span>
             </button>
-            <div className="header-actions">
-              <button
-                type="button"
-                className="theme-toggle"
-                onClick={toggleDarkTheme}
-                aria-label={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
-                title={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
-              >
-                <span className="theme-toggle__icon" aria-hidden="true">
-                  {isDarkTheme ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="4.2" />
-                      <path d="M12 2.5v2.2M12 19.3v2.2M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2.5 12h2.2M19.3 12h2.2M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.2 14.1A8.7 8.7 0 0 1 9.9 3.8a.75.75 0 0 0-.95-.95A9.95 9.95 0 1 0 21.15 15a.75.75 0 0 0-.95-.9Z" />
-                    </svg>
-                  )}
-                </span>
-              </button>
+            <div className="header-actions flex items-center gap-3">
+              <ThemeToggleSwitch dark={isDarkTheme} onToggle={toggleTheme} label={themeToggleLabel} />
 
               <div className="relative" ref={headerMenuRef}>
                 <button
@@ -2110,10 +2263,10 @@ export default function App() {
                 <AnimatePresence>
                   {showHeaderMenu ? (
                     <MotionDiv
-                      initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                      initial={{ opacity: 1 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      transition={{ duration: 0 }}
                       className="header-menu-panel"
                     >
                       {session.token ? (
@@ -2122,25 +2275,6 @@ export default function App() {
                             <p className="header-menu__eyebrow">Signed in as</p>
                             <p className="header-menu__user">{session.name || session.role || dictionary.header.user}</p>
                           </div>
-                          {switchableWorkspaceTabs.length > 0 ? (
-                            <div className="header-menu__workspace-list">
-                              {switchableWorkspaceTabs.map((workspace) => (
-                                <button
-                                  key={workspace.key}
-                                  type="button"
-                                  className={`header-menu__item ${
-                                    activeDashboardPage === workspace.key ? "header-menu__item--primary" : ""
-                                  }`}
-                                  onClick={() => {
-                                    setActiveDashboardPage(workspace.key);
-                                    setShowHeaderMenu(false);
-                                  }}
-                                >
-                                  {workspace.label}
-                                </button>
-                              ))}
-                            </div>
-                          ) : null}
                           <div className="header-menu__control">
                             <NotificationCenter token={session.token} />
                           </div>
@@ -2190,95 +2324,16 @@ export default function App() {
           </div>
         </header>
 
-        <AnimatePresence>
-          {showSettings ? (
-            <MotionAside
-              initial={{ opacity: 0, x: 20, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 18, scale: 0.98 }}
-              transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-              className="fixed right-4 top-24 z-40 w-[20rem] max-h-[78vh] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur sm:right-6"
-              ref={settingsPanelRef}
-            >
-              <h2 className="text-sm font-bold uppercase tracking-[0.16em] text-slate-600">{dictionary.settings.title}</h2>
-              {settingsNotice && (
-                <p className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
-                  {settingsNotice}
-                </p>
-              )}
-              <div className="mt-3 space-y-4">
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-bold text-slate-800">Map & Navigation</p>
-                  <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">Map style</span>
-                    <select
-                      value={advancedSettings.mapStyle}
-                      onChange={(event) => updateAdvancedSetting("mapStyle", event.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-                    >
-                      <option value="standard">Standard</option>
-                      <option value="satellite">Satellite</option>
-                      <option value="terrain">Terrain</option>
-                    </select>
-                  </label>
-                  <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Avoid tolls</span>
-                    <input
-                      type="checkbox"
-                      checked={advancedSettings.avoidTolls}
-                      onChange={(event) => updateAdvancedSetting("avoidTolls", event.target.checked)}
-                    />
-                  </label>
-                  <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Avoid highways</span>
-                    <input
-                      type="checkbox"
-                      checked={advancedSettings.avoidHighways}
-                      onChange={(event) => updateAdvancedSetting("avoidHighways", event.target.checked)}
-                    />
-                  </label>
-                </section>
-
-                <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-bold text-slate-800">Ride Preferences</p>
-                  <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">Preferred vehicle</span>
-                    <select
-                      value={advancedSettings.preferredVehicleType}
-                      onChange={(event) => updateAdvancedSetting("preferredVehicleType", event.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-                    >
-                      <option value="bike">Bike</option>
-                      <option value="mini">Mini</option>
-                      <option value="sedan">Sedan</option>
-                      <option value="auto">Auto</option>
-                    </select>
-                  </label>
-                  <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">AC preference</span>
-                    <select
-                      value={advancedSettings.acPreference}
-                      onChange={(event) => updateAdvancedSetting("acPreference", event.target.value)}
-                      className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-                    >
-                      <option value="any">Any</option>
-                      <option value="ac">AC only</option>
-                      <option value="non-ac">Non-AC</option>
-                    </select>
-                  </label>
-                  <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Quiet ride</span>
-                    <input
-                      type="checkbox"
-                      checked={advancedSettings.quietRide}
-                      onChange={(event) => updateAdvancedSetting("quietRide", event.target.checked)}
-                    />
-                  </label>
-                </section>
-              </div>
-            </MotionAside>
-          ) : null}
-        </AnimatePresence>
+        <SettingsDrawer
+          isOpen={showSettings}
+          onClose={() => setShowSettings(false)}
+          snapshot={settingsSnapshot}
+          defaultSnapshot={defaultSettingsSnapshot}
+          onSave={handleSaveSettings}
+          onLogout={handleLogout}
+          onDeleteAccount={handleDeleteAccountRequest}
+          notice={settingsNotice}
+        />
 
         <div ref={scrollContainerRef} data-scroll-container>
           <main
@@ -2290,12 +2345,12 @@ export default function App() {
               <MotionDiv
                 key={currentPage}
                 className="page-switch-stage"
-                initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -10 }}
-                transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: PAGE_SWITCH_EASE }}
+                initial={reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: 16, scale: 0.985 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={reduceMotion ? { opacity: 1, y: 0, scale: 1 } : { opacity: 0, y: -12, scale: 0.992 }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: PAGE_SWITCH_EASE }}
               >
-                {currentPage === "home" && <MinimalHomeLanding onOpenAuth={openAuthModal} copy={dictionary.home} />}
+                {currentPage === "home" && <PremiumLanding onOpenAuth={openAuthModal} copy={dictionary.home} theme={resolvedTheme} />}
                 {currentPage === "user" && (
                   <UserDashboard
                     session={session}
@@ -2310,11 +2365,7 @@ export default function App() {
 
           {!isOpsPage ? (
             <footer
-              className={`py-5 text-center text-sm ${
-                isDarkTheme
-                  ? "border-t border-slate-800/60 bg-slate-950/70 text-slate-400"
-                  : "border-t border-slate-200/70 bg-white/75 text-slate-600"
-              }`}
+              className="border-t border-white/70 bg-white/62 py-5 text-center text-sm text-slate-600 backdrop-blur-xl"
               data-reveal="instant"
               data-scroll-section
             >
@@ -2335,7 +2386,7 @@ export default function App() {
               labels={dictionary.auth}
               productName={dictionary.header.product}
               defaultRole={preferredRole}
-              theme={preferences.theme}
+              theme={resolvedTheme}
             />
           ) : null}
         </AnimatePresence>

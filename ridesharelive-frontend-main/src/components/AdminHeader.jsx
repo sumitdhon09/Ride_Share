@@ -1,34 +1,43 @@
-import { motion } from "motion/react";
+import { forwardRef } from "react";
+import { motion as Motion } from "motion/react";
 
 const DATE_RANGES = ["Today", "Week", "Month"];
 
-export default function AdminHeader({
-  searchValue,
-  onSearchChange,
-  dateRange,
-  onDateRangeChange,
-  alertsOnly,
-  onToggleAlerts,
-  isDark = true,
-  title = "Platform overview",
-  subtitle = "Operations dashboard",
-  breadcrumbs = ["Admin", "Overview"],
-  systemStatus = "System healthy",
-  onExport,
-  onToggleSidebar,
-}) {
+const AdminHeader = forwardRef(function AdminHeader(
+  {
+    searchValue,
+    onSearchChange,
+    dateRange,
+    onDateRangeChange,
+    alertsOnly,
+    onToggleAlerts,
+    isDark = true,
+    title = "Platform overview",
+    subtitle = "Operations dashboard",
+    breadcrumbs = ["Admin", "Overview"],
+    updatedAt = "",
+    onExport,
+    onToggleSidebar,
+  },
+  ref
+) {
   return (
-    <motion.header
+    <Motion.header
+      ref={ref}
       initial={{ opacity: 0, y: 18 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.24 }}
-      className={`sticky top-3 z-20 rounded-[2rem] border p-5 shadow-[0_24px_60px_rgba(15,23,42,0.16)] backdrop-blur ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}
+      className={`sticky top-3 z-20 rounded-[2rem] border p-5 shadow-[0_30px_70px_-46px_rgba(7,14,28,0.95)] backdrop-blur-xl ${
+        isDark
+          ? "border-[rgba(45,60,87,0.78)] bg-[linear-gradient(180deg,rgba(6,13,25,0.92),rgba(10,19,36,0.9))]"
+          : "border-slate-200 bg-white/96"
+      }`}
     >
       <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             {onToggleSidebar ? (
-              <button type="button" onClick={onToggleSidebar} className={`rounded-full border px-3 py-2 text-xs font-semibold ${isDark ? "border-slate-700 text-slate-300 xl:hidden" : "border-slate-200 text-slate-600 xl:hidden"}`}>
+              <button type="button" onClick={onToggleSidebar} className={`rounded-full border px-3 py-2 text-xs font-semibold ${isDark ? "border-slate-700/70 bg-[#0d1728]/82 text-slate-300 xl:hidden" : "border-slate-200 text-slate-600 xl:hidden"}`}>
                 Menu
               </button>
             ) : null}
@@ -44,7 +53,11 @@ export default function AdminHeader({
             value={searchValue}
             onChange={(event) => onSearchChange(event.target.value)}
             placeholder="Search riders, drivers, rides, payouts"
-            className={`rounded-[1.2rem] border px-4 py-3 text-sm outline-none transition ${isDark ? "border-slate-700 bg-slate-900 text-slate-100 focus:border-cyan-400/50" : "border-slate-200 bg-slate-50 text-slate-900 focus:border-sky-300"}`}
+            className={`rounded-[1.2rem] border px-4 py-3 text-sm outline-none transition ${
+              isDark
+                ? "border-slate-700/70 bg-[#0d1729]/88 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/32 focus:bg-[#101d33]"
+                : "border-slate-200 bg-slate-50 text-slate-900 focus:border-sky-300"
+            }`}
           />
           <div className="flex flex-wrap gap-2">
             {DATE_RANGES.map((item) => (
@@ -55,10 +68,10 @@ export default function AdminHeader({
                 className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold transition ${
                   dateRange === item
                     ? isDark
-                      ? "border-cyan-400/40 bg-cyan-400/12 text-cyan-200"
+                      ? "border-cyan-400/24 bg-cyan-400/[0.08] text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)]"
                       : "border-sky-200 bg-sky-50 text-sky-700"
                     : isDark
-                      ? "border-slate-700 bg-slate-900 text-slate-200"
+                      ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-300 hover:border-slate-600 hover:text-slate-100"
                       : "border-slate-200 bg-slate-50 text-slate-700"
                 }`}
               >
@@ -72,15 +85,15 @@ export default function AdminHeader({
             className={`relative rounded-[1.2rem] border px-4 py-3 text-sm font-semibold transition ${
               alertsOnly
                 ? isDark
-                  ? "border-amber-400/40 bg-amber-400/12 text-amber-200"
+                  ? "border-amber-400/24 bg-amber-400/[0.08] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]"
                   : "border-amber-200 bg-amber-50 text-amber-700"
                 : isDark
-                  ? "border-slate-700 bg-slate-900 text-slate-200"
+                  ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-300 hover:border-slate-600 hover:text-slate-100"
                   : "border-slate-200 bg-slate-50 text-slate-700"
             }`}
           >
             Alerts
-            <motion.span
+            <Motion.span
               animate={{ scale: [1, 1.15, 1], opacity: [0.75, 1, 0.75] }}
               transition={{ duration: 1.8, repeat: Infinity }}
               className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-amber-400"
@@ -88,16 +101,22 @@ export default function AdminHeader({
           </button>
           <div className="flex items-center gap-3">
             {onExport ? (
-              <button type="button" onClick={onExport} className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              <button type="button" onClick={onExport} className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-200 hover:border-slate-600" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                 Export CSV
               </button>
             ) : null}
-            <div className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-emerald-500/20 bg-emerald-500/10 text-emerald-200" : "border-emerald-200 bg-emerald-50 text-emerald-700"}`}>
-              {systemStatus}
-            </div>
           </div>
         </div>
       </div>
-    </motion.header>
+      {updatedAt ? (
+        <div className={`mt-3 text-right text-[11px] uppercase tracking-[0.18em] ${isDark ? "text-slate-500" : "text-slate-400"}`}>
+          Last sync {new Date(updatedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+        </div>
+      ) : null}
+    </Motion.header>
   );
-}
+});
+
+AdminHeader.displayName = "AdminHeader";
+
+export default AdminHeader;

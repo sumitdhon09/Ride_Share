@@ -1,6 +1,8 @@
 import { motion } from "motion/react";
+import { Activity, LocateFixed, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import CompactMap from "./CompactMap";
+import OpsActionButton from "./OpsActionButton";
 
 export default function DriverMapPanel({
   pickup,
@@ -16,35 +18,23 @@ export default function DriverMapPanel({
 
   return (
     <>
-      <section className={`rounded-[1.75rem] border p-4 ${isDark ? "border-slate-800 bg-slate-950/92" : "border-slate-200 bg-white/96"}`}>
+      <section className={`rounded-[1.75rem] border p-4 ${isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.95),rgba(9,18,34,0.9))]" : "border-slate-200 bg-white/96"}`}>
         <div className="mb-3 flex items-center justify-between">
           <div>
             <p className={`text-[11px] font-semibold uppercase tracking-[0.22em] ${isDark ? "text-slate-400" : "text-slate-500"}`}>Live map</p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onCenterToUser}
-              className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-cyan-400/20 bg-cyan-400/10 text-cyan-200" : "border-sky-200 bg-sky-50 text-sky-700"}`}
-            >
+            <OpsActionButton compact icon={LocateFixed} variant="primary" isDark={isDark} onClick={onCenterToUser}>
               Center
-            </button>
-            <button
-              type="button"
-              onClick={onRefresh}
-              className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-700 bg-slate-900 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}
-            >
+            </OpsActionButton>
+            <OpsActionButton compact icon={RefreshCcw} isDark={isDark} onClick={onRefresh}>
               Refresh
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivityOpen(true)}
-              className={`rounded-full border px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-violet-400/20 bg-violet-400/10 text-violet-200" : "border-violet-200 bg-violet-50 text-violet-700"}`}
-            >
+            </OpsActionButton>
+            <OpsActionButton compact icon={Activity} variant="warning" isDark={isDark} onClick={() => setActivityOpen(true)}>
               Activity
-            </button>
+            </OpsActionButton>
             {["High demand", "Nearby riders"].map((chip) => (
-              <span key={chip} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-700 bg-slate-900 text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              <span key={chip} className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] ${isDark ? "border-slate-700/70 bg-[#0f1a2d] text-slate-300" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
                 {chip}
               </span>
             ))}
@@ -80,24 +70,20 @@ export default function DriverMapPanel({
         <div className="fixed inset-0 z-50 flex items-start justify-end bg-slate-950/40 p-4 backdrop-blur-[2px]" onClick={() => setActivityOpen(false)}>
           <div
             className={`mt-20 w-full max-w-sm rounded-[1.6rem] border p-5 shadow-[0_30px_90px_-35px_rgba(15,23,42,0.45)] ${
-              isDark ? "border-slate-800 bg-slate-950/98 text-slate-100" : "border-slate-200 bg-white text-slate-900"
+              isDark ? "border-[rgba(45,60,87,0.76)] bg-[linear-gradient(180deg,rgba(5,12,24,0.98),rgba(9,18,34,0.95))] text-slate-100" : "border-slate-200 bg-white text-slate-900"
             }`}
             onClick={(event) => event.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-3">
               <h3 className="text-lg font-semibold">Driver activity</h3>
-              <button
-                type="button"
-                onClick={() => setActivityOpen(false)}
-                className={`rounded-full border px-3 py-1.5 text-xs font-semibold ${isDark ? "border-slate-700 bg-slate-900 text-slate-200" : "border-slate-200 bg-slate-50 text-slate-700"}`}
-              >
+              <OpsActionButton compact isDark={isDark} onClick={() => setActivityOpen(false)}>
                 Close
-              </button>
+              </OpsActionButton>
             </div>
             <div className={`mt-4 space-y-3 text-sm ${isDark ? "text-slate-300" : "text-slate-700"}`}>
-              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Last accepted</span><span>2 min ago</span></div></div>
-              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Demand spike</span><span>Station Road</span></div></div>
-              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-slate-800 bg-slate-900/80" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Next best zone</span><span>Bus Stand</span></div></div>
+              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Last accepted</span><span>2 min ago</span></div></div>
+              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Demand spike</span><span>Station Road</span></div></div>
+              <div className={`rounded-[1.1rem] border px-4 py-3 ${isDark ? "border-[rgba(41,56,83,0.82)] bg-[#0d182b]/82" : "border-slate-200 bg-slate-50"}`}><div className="flex items-center justify-between"><span>Next best zone</span><span>Bus Stand</span></div></div>
             </div>
           </div>
         </div>
