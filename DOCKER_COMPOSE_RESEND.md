@@ -68,9 +68,6 @@ services:
       MAIL_OTP_ENABLED: "true"
       AUTH_SIGNUP_OTP_ENABLED: "true"
 
-      # OpenAI (optional)
-      OPENAI_API_KEY: sk_test_key_here
-
       # Razorpay (optional)
       PAYMENT_RAZORPAY_KEY_ID: rzp_test_key_id_here
       PAYMENT_RAZORPAY_KEY_SECRET: razorpay_secret_here
@@ -124,9 +121,6 @@ APP_JWT_SECRET=your_32_character_secret_key_minimum_required_1234567890
 # Resend Configuration
 RESEND_API_KEY=re_your_api_key_from_dashboard
 RESEND_FROM_ADDRESS=onboarding@resend.dev
-
-# OpenAI (if using AI features)
-OPENAI_API_KEY=sk_test_key_here
 
 # Razorpay (if using payments)
 PAYMENT_RAZORPAY_KEY_ID=rzp_test_key_id_here
