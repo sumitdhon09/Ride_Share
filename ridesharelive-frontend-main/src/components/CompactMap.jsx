@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import L from "leaflet";
 import { MapContainer, Marker, Polyline, TileLayer, Tooltip, useMap, useMapEvents, Circle } from "react-leaflet";
 import { fetchRouteSummary, geocodePlace, resolvePickupCoordinate, reverseGeocodeCoordinate } from "../utils/routing";
+import RoutingControl from "./RoutingControl";
 
 // Leaflet marker fix
 delete L.Icon.Default.prototype._getIconUrl;
@@ -255,6 +256,14 @@ export default function CompactMap({
           <MapViewport points={viewportPoints} center={center} />
           <MapSelectionHandler enabled={Boolean(onMapLocationSelect)} onSelect={handleMapSelect} />
           
+          {pickupPoint && dropPoint && (
+            <RoutingControl 
+              pickup={{ lat: pickupPoint[0], lon: pickupPoint[1] }}
+              drop={{ lat: dropPoint[0], lon: dropPoint[1] }}
+              routePath={routePath}
+            />
+          )}
+          
           {routePath.length > 1 && (
             <>
               <Polyline 
@@ -271,7 +280,7 @@ export default function CompactMap({
           {pickupPoint && (
             <Circle 
               center={pickupPoint} 
-              radius={searchRadiusKm * 1000} 
+              radius={searchRadiusKm * 1000}
               pathOptions={{ color: '#f59e0b', weight: 1, fillOpacity: 0.05 }}
             />
           )}

@@ -6169,3 +6169,21 @@ html[data-compact-ui="true"] .settings-drawer .settings-toggle-row {
     height: 7rem;
   }
 }
+
+/* Leaflet Routing Machine Styles */
+.leaflet-routing-container {
+  display: none !important;
+}
+
+.leaflet-routing-alt,
+.leaflet-routing-alt-minimized {
+  display: none !important;
+}
+
+.leaflet-routing-alt-details {
+  display: none !important;
+}
+
+.leaflet-routing-error {
+  display: none !important;
+}
