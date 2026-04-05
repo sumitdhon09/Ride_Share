@@ -24,7 +24,6 @@ import {
 import { calculateRideFare, RIDE_OPTIONS } from "./utils/farePricing";
 
 const MotionDiv = motion.div;
-const ThreeBackdrop = lazy(() => import("./components/ThreeBackdrop"));
 const PAGE_SWITCH_EASE = [0.22, 1, 0.36, 1];
 
 const INITIAL_SESSION = {
@@ -2115,13 +2114,6 @@ export default function App() {
   const isDarkTheme = resolvedTheme === "dark-theme";
   const isOpsDark = isOpsPage && isDarkTheme;
   const themeToggleLabel = isDarkTheme ? "Switch to light mode" : "Switch to dark mode";
-  const backdropTheme =
-    currentPage === "driver"
-      ? (isDarkTheme ? "driver-ops" : "peach-glow")
-      : currentPage === "admin"
-        ? (isDarkTheme ? "admin-ops" : "peach-glow")
-        : resolvedTheme;
-  const showBackdrop = currentPage === "home" || currentPage === "user" || currentPage === "driver" || currentPage === "admin";
 
   return (
     <div
@@ -2150,11 +2142,6 @@ export default function App() {
         style={{ position: "fixed", left: "-9999px", top: "0", opacity: 0, pointerEvents: "none" }}
       />
       <PremiumCursor />
-      {showBackdrop ? (
-        <Suspense fallback={null}>
-          <ThreeBackdrop theme={backdropTheme} />
-        </Suspense>
-      ) : null}
       <div className="app-shell">
         <header
           className={`sticky top-0 z-40 border-b backdrop-blur-xl ${
