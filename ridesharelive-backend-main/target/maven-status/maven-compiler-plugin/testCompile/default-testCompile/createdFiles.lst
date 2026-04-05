@@ -1,3 +1,5 @@
 com\example\backend\service\RidePredictiveInsightsServiceTest.class
 com\example\backend\service\SignupOtpServiceTest.class
 com\example\backend\BackendApplicationTests.class
+com\example\backend\security\CorsConfigurationTest.class
+com\example\backend\security\PostgresProfileCorsConfigurationTest.class

@@ -97,6 +97,7 @@ com\example\backend\controller\UserSettingsController.class
 com\example\backend\entity\User$UserBuilder.class
 com\example\backend\entity\AdminZone$AdminZoneBuilder.class
 com\example\backend\dto\admin\AdminRidesResponse$RideRow.class
+com\example\backend\controller\HomeController.class
 com\example\backend\entity\Ride$RideBuilder.class
 com\example\backend\service\AdminLiveUpdateService.class
 com\example\backend\dto\admin\AdminPaymentsResponse$PaymentRow.class
