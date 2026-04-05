@@ -89,6 +89,29 @@ public class ResendOtpEmailService {
         return sendHtmlEmailViaResend(toAddress, "RideShare Live Signup OTP", textBody, htmlBody);
     }
 
+    public MailDeliveryResult sendForgotPasswordOtpEmail(String recipientEmail, String otp) {
+        if (!otpEmailEnabled) {
+            LOGGER.debug("Forgot password OTP email disabled; skipping send for email={}", recipientEmail);
+            return MailDeliveryResult.failure("Email OTP is disabled on backend.");
+        }
+
+        if (!isResendConfigured()) {
+            LOGGER.warn("Resend API key not configured; cannot send forgot password OTP");
+            return MailDeliveryResult.failure("Email service is not configured properly. Please contact support.");
+        }
+
+        String toAddress = normalizeEmail(recipientEmail);
+        if (toAddress.isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email; email address is missing.");
+            return MailDeliveryResult.failure("Recipient email address is missing.");
+        }
+
+        String htmlBody = buildForgotPasswordOtpHtmlBody(otp);
+        String textBody = buildForgotPasswordOtpTextBody(otp);
+
+        return sendHtmlEmailViaResend(toAddress, "RideShare Live Password Reset OTP", textBody, htmlBody);
+    }
+
     private boolean sendEmailViaResend(String toAddress, String subject, String body) {
         try {
             Resend resend = new Resend(resendApiKey);
@@ -187,6 +210,50 @@ public class ResendOtpEmailService {
                 "This code expires in 5 minutes. Please do not share it with anyone.\n\n" +
                 "RideShare Live Team",
                 name, otp
+        );
+    }
+
+    private String buildForgotPasswordOtpHtmlBody(String otp) {
+        return String.format(
+                "<!DOCTYPE html>\n" +
+                "<html>\n" +
+                "<head>\n" +
+                "  <style>\n" +
+                "    body { font-family: Arial, sans-serif; background-color: #f4f4f4; margin: 0; padding: 0; }\n" +
+                "    .container { max-width: 600px; margin: 20px auto; background-color: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }\n" +
+                "    .header { color: #333; margin-bottom: 20px; }\n" +
+                "    .otp-box { background-color: #f0f0f0; padding: 15px; border-radius: 5px; text-align: center; margin: 20px 0; }\n" +
+                "    .otp-code { font-size: 32px; font-weight: bold; color: #ff6b6b; letter-spacing: 5px; }\n" +
+                "    .footer { color: #666; font-size: 12px; margin-top: 20px; border-top: 1px solid #ddd; padding-top: 10px; }\n" +
+                "  </style>\n" +
+                "</head>\n" +
+                "<body>\n" +
+                "  <div class=\"container\">\n" +
+                "    <div class=\"header\">\n" +
+                "      <h2>Password Reset Request</h2>\n" +
+                "    </div>\n" +
+                "    <p>You requested to reset your RideShare Live password. Use the code below:</p>\n" +
+                "    <div class=\"otp-box\">\n" +
+                "      <div class=\"otp-code\">%s</div>\n" +
+                "    </div>\n" +
+                "    <p>This code expires in 10 minutes. If you did not request this, please ignore this email.</p>\n" +
+                "    <div class=\"footer\">\n" +
+                "      <p>RideShare Live Team<br>Need help? Contact support@ridesharelive.com</p>\n" +
+                "    </div>\n" +
+                "  </div>\n" +
+                "</body>\n" +
+                "</html>",
+                otp
+        );
+    }
+
+    private String buildForgotPasswordOtpTextBody(String otp) {
+        return String.format(
+                "Hi,\n\n" +
+                "Your RideShare Live password reset OTP is: %s\n\n" +
+                "This code expires in 10 minutes. If you did not request this, please ignore this email.\n\n" +
+                "RideShare Live Team",
+                otp
         );
     }
 

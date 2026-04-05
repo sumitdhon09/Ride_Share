@@ -18,6 +18,7 @@ import com.example.backend.dto.auth.AuthSignupRequest;
 import com.example.backend.dto.auth.AuthSignupOtpRequest;
 import com.example.backend.entity.User;
 import com.example.backend.security.JwtUtil;
+import com.example.backend.service.ForgotPasswordOtpService;
 import com.example.backend.service.RefreshTokenService;
 import com.example.backend.service.SignupOtpService;
 import com.example.backend.service.UserService;
@@ -42,6 +43,9 @@ public class AuthController {
 
     @Autowired
     private SignupOtpService signupOtpService;
+
+    @Autowired
+    private ForgotPasswordOtpService forgotPasswordOtpService;
 
     @PostMapping("/signup/request-otp")
     @Operation(summary = "Generate and send a signup OTP")
@@ -213,5 +217,67 @@ public class AuthController {
             refreshTokenService.revoke(request.getRefreshToken().trim());
         }
         return ResponseEntity.ok(Map.of("message", "Logged out."));
+    }
+
+    @PostMapping("/forgot/request-otp")
+    @Operation(summary = "Request OTP for password reset")
+    @ApiResponse(responseCode = "200", description = "OTP sent if account exists")
+    public ResponseEntity<?> requestForgotPasswordOtp(@RequestBody Map<String, String> request) {
+        String email = request != null ? request.get("email") : null;
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "email is required."));
+        }
+
+        ForgotPasswordOtpService.IssueResult result = forgotPasswordOtpService.issueOtp(email.trim());
+        if (!result.accepted()) {
+            if (result.rateLimited()) {
+                return ResponseEntity.status(429).body(
+                        Map.of(
+                                "message", result.message(),
+                                "retryAfterSeconds", result.retryAfterSeconds()
+                        )
+                );
+            }
+            return ResponseEntity.badRequest().body(Map.of("message", result.message()));
+        }
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "message", result.message(),
+                        "emailSent", result.emailSent(),
+                        "devOtp", result.devOtp() == null ? "" : result.devOtp(),
+                        "expiresAt", result.expiresAt() == null ? "" : result.expiresAt().toString()
+                )
+        );
+    }
+
+    @PostMapping("/forgot/reset")
+    @Operation(summary = "Reset password with OTP")
+    @ApiResponse(responseCode = "200", description = "Password reset successfully")
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> request) {
+        String email = request != null ? request.get("email") : null;
+        String otp = request != null ? request.get("otp") : null;
+        String newPassword = request != null ? request.get("newPassword") : null;
+
+        if (email == null || email.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "email is required."));
+        }
+        if (otp == null || otp.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "otp is required."));
+        }
+        if (newPassword == null || newPassword.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "newPassword is required."));
+        }
+
+        ForgotPasswordOtpService.VerificationResult result = forgotPasswordOtpService.verifyOtpAndResetPassword(
+                email.trim(),
+                otp.trim(),
+                newPassword
+        );
+        if (!result.valid()) {
+            return ResponseEntity.badRequest().body(Map.of("message", result.message()));
+        }
+
+        return ResponseEntity.ok(Map.of("message", result.message()));
     }
 }

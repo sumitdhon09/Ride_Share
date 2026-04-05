@@ -128,6 +128,50 @@ public class OtpEmailService {
         return sendPlainTextEmail(toAddress, "RideShare Live signup OTP", body);
     }
 
+    public MailDeliveryResult sendForgotPasswordOtpEmail(String recipientEmail, String otp) {
+        if (!otpEmailEnabled) {
+            LOGGER.debug("Forgot password OTP email disabled; skipping send for email={}", recipientEmail);
+            return MailDeliveryResult.failure("Email OTP is disabled on backend.");
+        }
+
+        String toAddress = normalizeEmail(recipientEmail);
+        if (toAddress.isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email; email address is missing.");
+            return MailDeliveryResult.failure("Recipient email address is missing.");
+        }
+
+        if (skipWhenNoSmtpHost && smtpHost.isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email for {}; MAIL host is not configured.", toAddress);
+            return MailDeliveryResult.failure("Mail server is not configured. Set MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD and MAIL_FROM_ADDRESS.");
+        }
+
+        if (smtpAuthEnabled && fromFallbackAddress.isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email for {}; MAIL username is not configured.", toAddress);
+            return MailDeliveryResult.failure("MAIL_USERNAME is missing. For Gmail, use your Gmail address.");
+        }
+
+        if (smtpAuthEnabled && smtpPassword.isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email for {}; MAIL password is not configured.", toAddress);
+            return MailDeliveryResult.failure("MAIL_PASSWORD is missing. For Gmail, use a Google App Password.");
+        }
+
+        if (resolveFromAddress().isBlank()) {
+            LOGGER.warn("Skipping forgot password OTP email for {}; from-address is not configured.", toAddress);
+            return MailDeliveryResult.failure("MAIL_FROM_ADDRESS is missing.");
+        }
+
+        String body = String.format(
+                "Hi,\n\n"
+                        + "Your RideShare Live password reset OTP is: %s\n\n"
+                        + "This code expires soon. Please do not share it with anyone.\n\n"
+                        + "If you did not request this, please ignore this email.\n\n"
+                        + "RideShare Live Team",
+                otp == null ? "" : otp.trim()
+        );
+
+        return sendPlainTextEmail(toAddress, "RideShare Live password reset OTP", body);
+    }
+
     private MailDeliveryResult sendPlainTextEmail(String toAddress, String subject, String body) {
         try {
             MimeMessage message = javaMailSender.createMimeMessage();

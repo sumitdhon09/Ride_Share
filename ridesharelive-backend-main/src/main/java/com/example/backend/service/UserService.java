@@ -88,4 +88,8 @@ public class UserService {
         return userOpt.isPresent() && passwordMatches(rawPassword, userOpt.get().getPassword());
     }
 
+    public User updateUser(User user) {
+        return userRepository.save(user);
+    }
+
 }
