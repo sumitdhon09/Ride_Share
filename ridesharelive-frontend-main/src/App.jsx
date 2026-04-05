@@ -2026,6 +2026,8 @@ export default function App() {
     setSession(nextSession);
     setActiveDashboardPage(getDefaultPageForRole(nextSession.role));
     setShowAuth(false);
+    // Open settings drawer immediately after successful login
+    setShowSettings(true);
   };
 
   const handleSignup = () => {

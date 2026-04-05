@@ -207,6 +207,12 @@ export default function AuthModal({ isOpen, mode = "login", onModeChange, onClos
   const [devOtpHint, setDevOtpHint] = useState("");
   const [toast, setToast] = useState(null);
   const [busy, setBusy] = useState(false);
+
+  // Forgot password flow state
+  const [forgotFlow, setForgotFlow] = useState(false);
+  const [forgotStep, setForgotStep] = useState(1); // 1: request OTP, 2: verify & reset
+  const [newPassword, setNewPassword] = useState("");
+
   const darkMode = theme === "dark-theme";
 
   useEffect(() => { setCurrentMode(normalizeMode(mode)); }, [mode]);
@@ -407,10 +413,87 @@ export default function AuthModal({ isOpen, mode = "login", onModeChange, onClos
   };
 
   const handleForgotPassword = () => {
+    // Start forgot-password flow inside the modal
     setError("");
     setErrorTone("error");
-    setSuccess("OTP is needed only in forgot password or signup verification.");
-    showToast("Forgot password flow will use OTP.", "success");
+    setSuccess("");
+    setDevOtpHint("");
+    setForgotFlow(true);
+    setForgotStep(1);
+  };
+
+  const cancelForgotFlow = () => {
+    setForgotFlow(false);
+    setForgotStep(1);
+    setNewPassword("");
+    setSignupForm((prev) => ({ ...prev, otp: "" }));
+    setError("");
+    setSuccess("");
+    setDevOtpHint("");
+  };
+
+  const handleForgotRequest = async () => {
+    if (!loginForm.email.trim()) {
+      setError("Enter your email to receive an OTP.");
+      setErrorTone("error");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setSuccess("");
+    setDevOtpHint("");
+
+    try {
+      const payload = await apiRequest("/auth/forgot/request-otp", "POST", { email: loginForm.email.trim() });
+      setForgotStep(2);
+      setSuccess(payload?.message || "OTP sent to your email.");
+      setDevOtpHint(payload?.devOtp ? `Development OTP: ${payload.devOtp}` : "");
+      showToast("OTP sent. Check your email.", "success");
+    } catch (requestError) {
+      setError(requestError.message || "Unable to send OTP.");
+      setErrorTone("error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleForgotReset = async () => {
+    if (signupForm.otp.trim().length !== 6) {
+      setError("Enter the 6-digit OTP to reset your password.");
+      setErrorTone("error");
+      return;
+    }
+    if (newPassword.trim().length < 6) {
+      setError("Choose a password with at least 6 characters.");
+      setErrorTone("error");
+      return;
+    }
+
+    setBusy(true);
+    setError("");
+    setSuccess("");
+
+    try {
+      await apiRequest("/auth/forgot/reset", "POST", {
+        email: loginForm.email.trim(),
+        otp: signupForm.otp.trim(),
+        newPassword: newPassword.trim(),
+      });
+
+      showToast("Password reset successful. Please login with your new password.", "success");
+      // Reset flow and close
+      setForgotFlow(false);
+      setForgotStep(1);
+      setNewPassword("");
+      setSignupForm((prev) => ({ ...prev, otp: "" }));
+    } catch (requestError) {
+      const nextError = normalizeSignupError(requestError.message || "Unable to reset password.");
+      setError(nextError.text);
+      setErrorTone(nextError.tone);
+    } finally {
+      setBusy(false);
+    }
   };
   const renderLoginStep = () => (
     <motion.div key="login-step-1" initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }} className="space-y-4">
@@ -428,6 +511,35 @@ export default function AuthModal({ isOpen, mode = "login", onModeChange, onClos
       <div className="space-y-2">
         <span className={`text-[0.72rem] font-semibold uppercase tracking-[0.22em] ${fieldLabelClass}`}>Role</span>
         <RolePills value={loginForm.role} onChange={(role) => setLoginForm((previous) => ({ ...previous, role }))} labels={copy} darkMode={darkMode} />
+      </div>
+    </motion.div>
+  );
+
+  const renderForgotStep = () => (
+    <motion.div key="forgot-step" initial={{ opacity: 0, x: 18 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -18 }} transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }} className="space-y-4">
+      <Field label="Email" labelClassName={fieldLabelClass} helperClassName={helperTextClass}>
+        <Input type="email" placeholder="you@example.com" value={loginForm.email} onChange={(event) => setLoginForm((previous) => ({ ...previous, email: event.target.value }))} className={inputClass} />
+      </Field>
+      {forgotStep === 1 ? (
+        <p className={`text-sm ${helperTextClass}`}>Enter your email and we'll send an OTP to reset your password.</p>
+      ) : (
+        <>
+          <Field label="OTP" labelClassName={fieldLabelClass} helperClassName={helperTextClass}>
+            <div className={otpContainerClass}>
+              <OtpCodeInput value={signupForm.otp} onChange={(otp) => setSignupForm((previous) => ({ ...previous, otp }))} autoFocus disabled={busy} />
+            </div>
+          </Field>
+          <Field label="New password" labelClassName={fieldLabelClass} helperClassName={helperTextClass}>
+            <Input type="password" placeholder="Choose a new password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} className={inputClass} />
+          </Field>
+        </>
+      )}
+
+      <div className="flex items-center justify-between">
+        <button type="button" onClick={cancelForgotFlow} className={`text-sm font-semibold transition ${darkMode ? "text-slate-300 hover:text-white" : "text-slate-600 hover:text-slate-900"}`}>
+          Back
+        </button>
+        <div />
       </div>
     </motion.div>
   );
@@ -457,10 +569,31 @@ export default function AuthModal({ isOpen, mode = "login", onModeChange, onClos
   const activeStep = currentMode === "login" ? 1 : signupStep;
   const stepCount = currentMode === "login" ? 1 : 2;
   const isFinalStep = currentMode === "signup" && activeStep === 2;
-  const primaryLabel = currentMode === "login" ? busy ? copy.loginLoading : copy.loginAction : isFinalStep ? busy ? copy.createAccountLoading : "Create account" : busy ? "Sending OTP..." : "Continue";
+  const primaryLabel = forgotFlow
+    ? (forgotStep === 1 ? (busy ? "Sending..." : "Send OTP") : (busy ? "Resetting..." : "Reset password"))
+    : (currentMode === "login" ? busy ? copy.loginLoading : copy.loginAction : isFinalStep ? busy ? copy.createAccountLoading : "Create account" : busy ? "Sending OTP..." : "Continue");
   const secondaryAction = currentMode === "login" ? () => setMode("signup") : () => (isFinalStep ? setSignupStep(1) : setMode("login"));
   const secondaryLabel = currentMode === "login" ? content.ctaAction : isFinalStep ? "Back" : content.ctaAction;
-  const handlePrimaryAction = () => { if (currentMode === "login") { handleLoginSubmit(); return; } if (signupStep === 1) { handleSignupContinue(); return; } handleSignupSubmit(); };
+  const handlePrimaryAction = () => {
+    if (forgotFlow) {
+      if (forgotStep === 1) {
+        handleForgotRequest();
+        return;
+      }
+      handleForgotReset();
+      return;
+    }
+
+    if (currentMode === "login") {
+      handleLoginSubmit();
+      return;
+    }
+    if (signupStep === 1) {
+      handleSignupContinue();
+      return;
+    }
+    handleSignupSubmit();
+  };
 
   return (
     <AnimatePresence>
@@ -598,7 +731,7 @@ export default function AuthModal({ isOpen, mode = "login", onModeChange, onClos
             </div>
 
             <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
-              <AnimatePresence mode="wait">{currentMode === "login" ? renderLoginStep() : renderSignupStep()}</AnimatePresence>
+              <AnimatePresence mode="wait">{forgotFlow ? renderForgotStep() : (currentMode === "login" ? renderLoginStep() : renderSignupStep())}</AnimatePresence>
 
               <div className="mt-4 space-y-3">
                 {error ? <ToneMessage tone={errorTone}>{error}</ToneMessage> : null}
