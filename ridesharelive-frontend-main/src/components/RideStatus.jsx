@@ -6,6 +6,13 @@ import { apiRequest } from "../api";
 const MotionDiv = motion.div;
 const MotionParagraph = motion.p;
 
+const CANCEL_REASON_OPTIONS = [
+  { id: "plan-changed", label: "Plan changed", emoji: "📋" },
+  { id: "driver-slow", label: "Driver taking too long", emoji: "⏱️" },
+  { id: "booked-mistake", label: "Booked by mistake", emoji: "😅" },
+  { id: "pickup-issue", label: "Pickup issue", emoji: "📍" },
+];
+
 const STATUS_STEPS = [
   { key: "REQUESTED", label: "Requested" },
   { key: "ACCEPTED", label: "Accepted" },
@@ -109,9 +116,10 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
   const [currentRide, setCurrentRide] = useState(ride || null);
   const [timedProgress, setTimedProgress] = useState(0);
   const [progressStartedAtMs, setProgressStartedAtMs] = useState(null);
-  const [cancelReason, setCancelReason] = useState("Plan changed");
+  const [cancelReason, setCancelReason] = useState("plan-changed");
   const [cancelError, setCancelError] = useState("");
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const completeNotifiedRef = useRef(false);
 
   const fetchRideStatus = useCallback(async () => {
@@ -288,20 +296,43 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
   const waitingTitleClass = isDarkTheme ? "text-sm font-semibold text-amber-100" : "text-sm font-semibold text-amber-800";
   const waitingBodyClass = isDarkTheme ? "mt-1 text-xs text-amber-200/90" : "mt-1 text-xs text-amber-700";
   const cancelButtonClass = isDarkTheme
-    ? "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-rose-500 to-rose-700 px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-12px_rgba(225,29,72,0.65)] transition hover:from-rose-400 hover:to-rose-600 hover:shadow-[0_16px_32px_-12px_rgba(225,29,72,0.55)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-rose-500 disabled:hover:to-rose-700 sm:w-auto sm:min-w-[10.5rem]"
-    : "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#d76450] to-[#bc4635] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-14px_rgba(188,70,53,0.42)] transition hover:from-[#ca5a47] hover:to-[#ae3d2d] hover:shadow-[0_16px_34px_-14px_rgba(188,70,53,0.38)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-[#d76450] disabled:hover:to-[#bc4635] sm:w-auto sm:min-w-[10.5rem]";
+    ? "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-rose-500 to-rose-700 px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-12px_rgba(225,29,72,0.65)] transition duration-300 hover:scale-105 hover:from-rose-400 hover:to-rose-600 hover:shadow-[0_16px_32px_-8px_rgba(225,29,72,0.65)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:from-rose-500 disabled:hover:to-rose-700 disabled:hover:shadow-[0_12px_28px_-12px_rgba(225,29,72,0.65)] sm:w-auto sm:min-w-[10.5rem]"
+    : "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#d76450] to-[#bc4635] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-14px_rgba(188,70,53,0.42)] transition duration-300 hover:scale-105 hover:from-[#ca5a47] hover:to-[#ae3d2d] hover:shadow-[0_16px_34px_-10px_rgba(188,70,53,0.55)] active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 disabled:hover:from-[#d76450] disabled:hover:to-[#bc4635] disabled:hover:shadow-[0_12px_28px_-14px_rgba(188,70,53,0.42)] sm:w-auto sm:min-w-[10.5rem]";
+  const chipContainerClass = "flex flex-wrap gap-2 sm:gap-3";
+  const getChipClass = (isSelected) => {
+    if (isDarkTheme) {
+      return isSelected
+        ? "group relative px-3.5 py-2 rounded-full text-xs font-semibold cursor-pointer transition-all duration-300 bg-gradient-to-br from-rose-500 to-rose-700 text-white shadow-[0_8px_16px_-4px_rgba(225,29,72,0.55)]"
+        : "group relative px-3.5 py-2 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 border border-white/15 bg-white/[0.08] text-slate-200 hover:border-white/30 hover:bg-white/[0.12]";
+    }
+    return isSelected
+      ? "group relative px-3.5 py-2 rounded-full text-xs font-semibold cursor-pointer transition-all duration-300 bg-gradient-to-br from-[#d76450] to-[#bc4635] text-white shadow-[0_8px_16px_-4px_rgba(188,70,53,0.35)]"
+      : "group relative px-3.5 py-2 rounded-full text-xs font-semibold cursor-pointer transition-all duration-200 border border-[#e0d5cf] bg-white hover:border-[#d4b5a8] hover:bg-[#fffbf8]";
+  };
+  const warningBoxClass = isDarkTheme
+    ? "relative mt-3 overflow-hidden rounded-xl border border-rose-500/30 bg-[linear-gradient(152deg,rgba(225,29,72,0.12),rgba(30,27,75,0.2),rgba(15,23,42,0.8))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-sm"
+    : "relative mt-3 overflow-hidden rounded-xl border border-[#f2d2ca] bg-[linear-gradient(152deg,rgba(255,253,252,0.8),rgba(255,248,245,0.7))] p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.6)]";
+  const modalBackdropClass = isDarkTheme
+    ? "fixed inset-0 bg-black/50 backdrop-blur-md"
+    : "fixed inset-0 bg-black/40 backdrop-blur-md";
+  const confirmModalClass = isDarkTheme
+    ? "relative w-full max-w-sm rounded-[1.5rem] border border-rose-500/30 bg-[linear-gradient(152deg,rgba(30,27,75,0.9),rgba(15,23,42,0.95))] p-6 shadow-[0_24px_56px_-36px_rgba(0,0,0,0.9)] backdrop-blur-xl"
+    : "relative w-full max-w-sm rounded-[1.5rem] border border-[#f2d2ca] bg-[linear-gradient(152deg,rgba(255,253,252,0.98),rgba(255,248,245,0.96))] p-6 shadow-[0_24px_56px_-36px_rgba(168,63,42,0.25)]";
 
   const handleCancelRide = async () => {
     if (!canCancel) {
       return;
     }
+    setShowConfirmModal(false);
     setCancelError("");
     setCancelLoading(true);
     try {
+      const selectedOption = CANCEL_REASON_OPTIONS.find(opt => opt.id === cancelReason);
+      const reasonLabel = selectedOption?.label || "Plan changed";
       const response = await apiRequest(
         `/rides/cancel/${currentRide.id}`,
         "POST",
-        { reason: cancelReason.trim() },
+        { reason: reasonLabel },
         token
       );
       setCurrentRide(response || currentRide);
@@ -474,56 +505,146 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
       </div>
 
       {canCancel && (
-        <MotionDiv
-          initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
-          className={cancelPanelShell}
-        >
-          <div
-            className={`pointer-events-none absolute -right-6 -top-14 h-36 w-36 rounded-full blur-3xl ${cancelGlowClass}`}
-            aria-hidden
-          />
-          <div className="relative flex flex-col gap-4">
-            <div className="flex gap-3.5">
-              <span className={cancelIconWrapClass}>
-                <AlertTriangle className="h-5 w-5" strokeWidth={2.25} aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className={cancelEyebrowClass}>End trip</p>
-                <h3 className={`mt-1 ${cancelTitleClass}`}>Cancel this ride</h3>
-                <p className={cancelSubtitleClass}>
-                  Pick a reason. Cancellation fees depend on how far the trip has progressed.
+        <>
+          <MotionDiv
+            initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={reduceMotion ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className={cancelPanelShell}
+          >
+            <div
+              className={`pointer-events-none absolute -right-6 -top-14 h-36 w-36 rounded-full blur-3xl ${cancelGlowClass}`}
+              aria-hidden
+            />
+            <div className="relative flex flex-col gap-4">
+              <div className="flex gap-3.5">
+                <span className={cancelIconWrapClass}>
+                  <AlertTriangle className="h-5 w-5" strokeWidth={2.25} aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className={cancelEyebrowClass}>End trip</p>
+                  <h3 className={`mt-1 ${cancelTitleClass}`}>Cancel this ride</h3>
+                  <p className={cancelSubtitleClass}>
+                    Pick a reason. Cancellation fees depend on how far the trip has progressed.
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid gap-3">
+                <div>
+                  <label htmlFor="cancel-reason" className={cancelLabelClass}>
+                    Reason for cancelling
+                  </label>
+                  <div className={`${chipContainerClass} mt-2`}>
+                    {CANCEL_REASON_OPTIONS.map((option) => (
+                      <MotionDiv
+                        key={option.id}
+                        onClick={() => setCancelReason(option.id)}
+                        className={getChipClass(cancelReason === option.id)}
+                        whileHover={{ scale: 1.04 }}
+                        whileTap={{ scale: 0.96 }}
+                        animate={
+                          cancelReason === option.id && !reduceMotion
+                            ? { y: [0, -2, 0] }
+                            : { y: 0 }
+                        }
+                        transition={
+                          cancelReason === option.id && !reduceMotion
+                            ? { duration: 0.4, ease: "easeOut" }
+                            : { duration: 0.2 }
+                        }
+                      >
+                        <span className="mr-1.5">{option.emoji}</span>
+                        {option.label}
+                      </MotionDiv>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className={cancelButtonClass}
+                  onClick={() => setShowConfirmModal(true)}
+                  disabled={cancelLoading}
+                >
+                  {cancelLoading ? "Cancelling…" : "Confirm cancel"}
+                </button>
+              </div>
+
+              <div className={warningBoxClass}>
+                <p className={`text-xs font-medium ${isDarkTheme ? "text-rose-200/90" : "text-[#9f3326]"}`}>
+                  <span className="font-semibold">Fee guide:</span> REQUESTED — no fee · ACCEPTED — up to 20% of fare · PICKED — up to 40% (capped by policy).
                 </p>
               </div>
+              {cancelError ? <p className={cancelErrorClass}>{cancelError}</p> : null}
             </div>
+          </MotionDiv>
 
-            <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
-              <label className="grid gap-1.5">
-                <span className={cancelLabelClass}>Reason for cancelling</span>
-                <select
-                  value={cancelReason}
-                  onChange={(event) => setCancelReason(event.target.value)}
-                  className={`${cancelSelectClass} ${isDarkTheme ? "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23fda4af%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]" : "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23bc4b39%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]"}`}
-                >
-                  <option>Plan changed</option>
-                  <option>Driver taking too long</option>
-                  <option>Booked by mistake</option>
-                  <option>Pickup issue</option>
-                </select>
-              </label>
-              <button type="button" className={cancelButtonClass} onClick={handleCancelRide} disabled={cancelLoading}>
-                {cancelLoading ? "Cancelling…" : "Confirm cancel"}
-              </button>
-            </div>
+          <AnimatePresence>
+            {showConfirmModal && (
+              <>
+                <MotionDiv
+                  className={modalBackdropClass}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  onClick={() => setShowConfirmModal(false)}
+                />
+                <div className={modalContentClass}>
+                  <MotionDiv
+                    className={confirmModalClass}
+                    initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.85, y: 20 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.85, y: 20 }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div className="mb-4">
+                      <h3 className={cancelTitleClass}>Confirm cancellation?</h3>
+                      <p className={`mt-2 ${cancelSubtitleClass}`}>
+                        Are you sure you want to cancel this ride? Cancellation fees may apply based on the trip progress.
+                      </p>
+                    </div>
 
-            <p className={cancelFeeNoteClass}>
-              <span className={isDarkTheme ? "text-rose-200/90" : "text-[#bc4b39]"}>Fee guide: </span>
-              REQUESTED — no fee · ACCEPTED — up to 20% of fare · PICKED — up to 40% (capped by policy).
-            </p>
-            {cancelError ? <p className={cancelErrorClass}>{cancelError}</p> : null}
-          </div>
-        </MotionDiv>
+                    <div className={`mt-4 rounded-lg p-3 ${isDarkTheme ? "bg-white/5 border border-white/10" : "bg-white/50 border border-slate-200"}`}>
+                      <p className={cancelLabelClass}>Selected reason:</p>
+                      <p className={`mt-1 text-sm font-semibold ${isDarkTheme ? "text-slate-100" : "text-slate-900"}`}>
+                        {CANCEL_REASON_OPTIONS.find(opt => opt.id === cancelReason)?.emoji}{" "}
+                        {CANCEL_REASON_OPTIONS.find(opt => opt.id === cancelReason)?.label}
+                      </p>
+                    </div>
+
+                    <div className="mt-6 flex flex-col gap-3 sm:flex-row-reverse">
+                      <MotionDiv
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <button
+                          type="button"
+                          className={cancelButtonClass}
+                          onClick={handleCancelRide}
+                          disabled={cancelLoading}
+                        >
+                          {cancelLoading ? "Cancelling…" : "Yes, cancel ride"}
+                        </button>
+                      </MotionDiv>
+                      <button
+                        type="button"
+                        className={isDarkTheme
+                          ? "inline-flex items-center justify-center rounded-xl border border-white/20 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-200 transition duration-200 hover:bg-white/10 hover:border-white/30 active:scale-95"
+                          : "inline-flex items-center justify-center rounded-xl border border-[#e0d5cf] bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition duration-200 hover:bg-slate-50 active:scale-95"}
+                        onClick={() => setShowConfirmModal(false)}
+                        disabled={cancelLoading}
+                      >
+                        Keep this ride
+                      </button>
+                    </div>
+                  </MotionDiv>
+                </div>
+              </>
+            )}
+          </AnimatePresence>
+        </>
       )}
     </section>
   );
