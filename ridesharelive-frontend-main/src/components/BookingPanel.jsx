@@ -276,11 +276,24 @@ export default function BookingPanel({
               <RideSelection
                 rides={RIDE_OPTIONS.map(r => ({ ...r, price: distanceKm ? calculateRideFare(distanceKm, r.id, roundTripEnabled) : r.minimumFare }))}
                 selectedRide={rideType} onSelect={setRideType}
+                roundTripEnabled={roundTripEnabled}
+                onToggleRoundTrip={setRoundTripEnabled}
+                fareEstimate={displayFareEstimate}
+                distanceKm={distanceKm}
+              />
+            )}
+            {activeStep === "payment" && (
+              <PaymentStep
+                options={PAYMENT_OPTIONS}
+                selectedPayment={paymentMode}
+                onSelect={setPaymentMode}
+                fareEstimate={displayFareEstimate}
+                rideLabel={RIDE_OPTIONS.find((r) => r.id === rideType)?.name || "Ride"}
               />
             )}
             {activeStep === "confirm" && (
               <div className="bg-slate-50 p-4 rounded-xl">
-                <p className="font-bold">{pickup} -> {drop}</p>
+                <p className="font-bold">{pickup} &rarr; {drop}</p>
                 <p className="text-xl font-bold mt-2">Rs {formatInr(displayFareEstimate)}</p>
               </div>
             )}

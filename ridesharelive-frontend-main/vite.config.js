@@ -7,25 +7,10 @@ export default defineConfig({
   build: {
     rollupOptions: {
       output: {
-        manualChunks(id) {
-          if (!id.includes('node_modules')) {
-            return undefined
-          }
-          if (id.includes('react') || id.includes('motion')) {
-            return 'react-vendor'
-          }
-          if (id.includes('three')) {
-            return 'three-vendor'
-          }
-          if (
-            id.includes('@stomp/stompjs') ||
-            id.includes('locomotive-scroll') ||
-            id.includes('velocity-animate')
-          ) {
-            return 'ui-vendor'
-          }
-          return 'vendor'
-        },
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'three-vendor': ['three'],
+        }
       },
     },
   },
