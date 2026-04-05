@@ -38,9 +38,12 @@ public class AppSecurityProperties {
             if (originPattern == null) {
                 continue;
             }
-            String trimmedPattern = originPattern.trim();
-            if (!trimmedPattern.isEmpty()) {
-                normalizedPatterns.add(trimmedPattern);
+            String[] rawPatterns = originPattern.split(",");
+            for (String rawPattern : rawPatterns) {
+                String trimmedPattern = rawPattern.trim();
+                if (!trimmedPattern.isEmpty()) {
+                    normalizedPatterns.add(trimmedPattern);
+                }
             }
         }
         if (normalizedPatterns.isEmpty()) {

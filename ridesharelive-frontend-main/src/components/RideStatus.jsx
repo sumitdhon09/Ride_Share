@@ -257,24 +257,24 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
     : "mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:grid-cols-2";
   const cancelPanelShell = isDarkTheme
     ? "relative mt-6 overflow-hidden rounded-[1.65rem] border border-rose-500/30 bg-[linear-gradient(152deg,rgba(225,29,72,0.16)_0%,rgba(30,27,75,0.35)_32%,rgba(15,23,42,0.94)_58%,rgba(15,23,42,0.92)_100%)] p-5 shadow-[0_28px_64px_-36px_rgba(225,29,72,0.55)] backdrop-blur-xl ring-1 ring-inset ring-white/[0.07] sm:p-6"
-    : "relative mt-6 overflow-hidden rounded-[1.65rem] border border-rose-200/95 bg-[linear-gradient(168deg,#ffffff_0%,#fff1f2_42%,#fff7ed_100%)] p-5 shadow-[0_24px_56px_-40px_rgba(225,29,72,0.22),0_1px_0_rgba(255,255,255,0.9)_inset] ring-1 ring-rose-100/90 sm:p-6";
-  const cancelGlowClass = isDarkTheme ? "bg-rose-500/25" : "bg-rose-400/30";
+    : "relative mt-6 overflow-hidden rounded-[1.65rem] border border-[#f2d2ca] bg-[linear-gradient(165deg,#fffdfc_0%,#fff4ef_48%,#fff8f3_100%)] p-5 shadow-[0_24px_56px_-40px_rgba(168,63,42,0.2),0_1px_0_rgba(255,255,255,0.94)_inset] ring-1 ring-[#f8e2db] sm:p-6";
+  const cancelGlowClass = isDarkTheme ? "bg-rose-500/25" : "bg-[rgba(232,148,128,0.34)]";
   const cancelIconWrapClass = isDarkTheme
     ? "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-400/25 bg-rose-500/12 text-rose-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]"
-    : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-rose-200/90 bg-white text-rose-600 shadow-sm";
-  const cancelEyebrowClass = isDarkTheme ? "text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300/95" : "text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-600";
+    : "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#f0d1c8] bg-[#fffaf7] text-[#bc4b39] shadow-[0_12px_28px_-22px_rgba(188,75,57,0.38)]";
+  const cancelEyebrowClass = isDarkTheme ? "text-[11px] font-semibold uppercase tracking-[0.2em] text-rose-300/95" : "text-[11px] font-semibold uppercase tracking-[0.2em] text-[#bc4b39]";
   const cancelTitleClass = isDarkTheme ? "text-lg font-bold tracking-tight text-slate-50" : "text-lg font-bold tracking-tight text-slate-900";
   const cancelSubtitleClass = isDarkTheme ? "mt-1 text-sm leading-relaxed text-slate-400" : "mt-1 text-sm leading-relaxed text-slate-600";
   const cancelLabelClass = isDarkTheme ? "text-xs font-semibold text-slate-400" : "text-xs font-semibold text-slate-500";
   const cancelSelectClass = isDarkTheme
     ? "w-full cursor-pointer appearance-none rounded-xl border border-white/14 bg-slate-950/85 bg-[length:1rem] bg-[right_0.75rem_center] bg-no-repeat px-3.5 py-3 pr-10 text-sm text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] outline-none transition focus:border-rose-400/45 focus:ring-2 focus:ring-rose-500/30 [&>option]:bg-slate-950 [&>option]:text-slate-100"
-    : "w-full cursor-pointer appearance-none rounded-xl border border-slate-200/95 bg-white px-3.5 py-3 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-rose-400 focus:ring-2 focus:ring-rose-200/90 [&>option]:bg-white [&>option]:text-slate-900";
+    : "w-full cursor-pointer appearance-none rounded-xl border border-[#eadad5] bg-white px-3.5 py-3 pr-10 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#cd715f] focus:ring-2 focus:ring-[#f4cdc4] [&>option]:bg-white [&>option]:text-slate-900";
   const cancelFeeNoteClass = isDarkTheme
     ? "rounded-xl border border-white/10 bg-black/30 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-slate-400"
-    : "rounded-xl border border-rose-100/90 bg-white/70 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-slate-600";
+    : "rounded-xl border border-[#f0ddd7] bg-white/85 px-3.5 py-2.5 text-xs font-medium leading-relaxed text-slate-600";
   const cancelErrorClass = isDarkTheme
     ? "mt-3 rounded-xl border border-rose-400/35 bg-rose-950/50 px-3.5 py-2.5 text-sm font-medium text-rose-100"
-    : "mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5 text-sm font-medium text-rose-800";
+    : "mt-3 rounded-xl border border-[#efc7bf] bg-[#fff3ef] px-3.5 py-2.5 text-sm font-medium text-[#9f3326]";
   const otpCardClass = isDarkTheme
     ? "mt-4 grid gap-3 rounded-2xl border border-cyan-400/18 bg-[linear-gradient(145deg,rgba(34,211,238,0.12),rgba(8,47,73,0.22),rgba(15,23,42,0.68))] p-4 shadow-[0_20px_44px_-34px_rgba(34,211,238,0.3)] sm:grid-cols-2"
     : "mt-4 grid gap-3 rounded-2xl border border-cyan-200 bg-cyan-50 p-4 sm:grid-cols-2";
@@ -289,7 +289,7 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
   const waitingBodyClass = isDarkTheme ? "mt-1 text-xs text-amber-200/90" : "mt-1 text-xs text-amber-700";
   const cancelButtonClass = isDarkTheme
     ? "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-rose-500 to-rose-700 px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-12px_rgba(225,29,72,0.65)] transition hover:from-rose-400 hover:to-rose-600 hover:shadow-[0_16px_32px_-12px_rgba(225,29,72,0.55)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-rose-500 disabled:hover:to-rose-700 sm:w-auto sm:min-w-[10.5rem]"
-    : "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-rose-600 to-rose-700 px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-14px_rgba(225,29,72,0.45)] transition hover:from-rose-500 hover:to-rose-600 hover:shadow-[0_16px_34px_-14px_rgba(225,29,72,0.4)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-rose-600 disabled:hover:to-rose-700 sm:w-auto sm:min-w-[10.5rem]";
+    : "inline-flex min-h-[3rem] w-full items-center justify-center rounded-xl bg-gradient-to-b from-[#d76450] to-[#bc4635] px-5 text-sm font-semibold text-white shadow-[0_12px_28px_-14px_rgba(188,70,53,0.42)] transition hover:from-[#ca5a47] hover:to-[#ae3d2d] hover:shadow-[0_16px_34px_-14px_rgba(188,70,53,0.38)] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:from-[#d76450] disabled:hover:to-[#bc4635] sm:w-auto sm:min-w-[10.5rem]";
 
   const handleCancelRide = async () => {
     if (!canCancel) {
@@ -504,7 +504,7 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                 <select
                   value={cancelReason}
                   onChange={(event) => setCancelReason(event.target.value)}
-                  className={`${cancelSelectClass} ${isDarkTheme ? "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23fda4af%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]" : "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23be123c%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]"}`}
+                  className={`${cancelSelectClass} ${isDarkTheme ? "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23fda4af%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]" : "[background-image:url('data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2220%22%20height%3D%2220%22%20fill%3D%22none%22%20stroke%3D%22%23bc4b39%22%20stroke-width%3D%222%22%3E%3Cpath%20d%3D%22m6%208%204%204%204-4%22%2F%3E%3C%2Fsvg%3E')]"}`}
                 >
                   <option>Plan changed</option>
                   <option>Driver taking too long</option>
@@ -518,7 +518,7 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
             </div>
 
             <p className={cancelFeeNoteClass}>
-              <span className={isDarkTheme ? "text-rose-200/90" : "text-rose-700"}>Fee guide: </span>
+              <span className={isDarkTheme ? "text-rose-200/90" : "text-[#bc4b39]"}>Fee guide: </span>
               REQUESTED — no fee · ACCEPTED — up to 20% of fare · PICKED — up to 40% (capped by policy).
             </p>
             {cancelError ? <p className={cancelErrorClass}>{cancelError}</p> : null}

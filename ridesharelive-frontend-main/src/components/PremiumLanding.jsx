@@ -55,6 +55,10 @@ function buildFallbackEstimate(distanceKm, vehicle) {
 }
 
 function formatFareRange(fareLow, fareHigh) {
+  if (!Number.isFinite(fareLow) || !Number.isFinite(fareHigh)) {
+    return "--";
+  }
+
   if (fareLow === fareHigh) {
     return `Rs ${fareLow}`;
   }
@@ -62,15 +66,33 @@ function formatFareRange(fareLow, fareHigh) {
   return `Rs ${fareLow}-${fareHigh}`;
 }
 
+function buildEmptyEstimate() {
+  return {
+    distance: "--",
+    etaText: "--",
+    fareLow: NaN,
+    fareHigh: NaN,
+  };
+}
+
 export default function PremiumLanding({ onOpenAuth, copy, theme }) {
   const landingRef = useRef(null);
-  const [pickup, setPickup] = useState("Kharadi, Pune");
-  const [drop, setDrop] = useState("Viman Nagar, Pune");
-  const [distanceKm, setDistanceKm] = useState("8");
-  const [vehicle, setVehicle] = useState("mini");
+  const [pickup, setPickup] = useState("");
+  const [drop, setDrop] = useState("");
+  const [distanceKm, setDistanceKm] = useState("");
+  const [vehicle, setVehicle] = useState("");
   const [estimateLoading, setEstimateLoading] = useState(false);
-  const fallbackEstimate = useMemo(() => buildFallbackEstimate(distanceKm, vehicle), [distanceKm, vehicle]);
-  const [estimatedTrip, setEstimatedTrip] = useState(fallbackEstimate);
+  const hasEstimateInput =
+    pickup.trim() &&
+    drop.trim() &&
+    vehicle &&
+    Number.isFinite(Number(distanceKm)) &&
+    Number(distanceKm) > 0;
+  const fallbackEstimate = useMemo(
+    () => (hasEstimateInput ? buildFallbackEstimate(distanceKm, vehicle) : buildEmptyEstimate()),
+    [distanceKm, hasEstimateInput, vehicle]
+  );
+  const [estimatedTrip, setEstimatedTrip] = useState(() => buildEmptyEstimate());
 
   useEffect(() => {
     setEstimatedTrip(fallbackEstimate);
@@ -79,7 +101,9 @@ export default function PremiumLanding({ onOpenAuth, copy, theme }) {
   useEffect(() => {
     let cancelled = false;
     const parsedDistance = Number(distanceKm);
-    if (!Number.isFinite(parsedDistance) || parsedDistance <= 0) {
+    if (!hasEstimateInput || !Number.isFinite(parsedDistance) || parsedDistance <= 0) {
+      setEstimateLoading(false);
+      setEstimatedTrip(buildEmptyEstimate());
       return undefined;
     }
 
@@ -117,7 +141,7 @@ export default function PremiumLanding({ onOpenAuth, copy, theme }) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [distanceKm, fallbackEstimate, vehicle]);
+  }, [distanceKm, fallbackEstimate, hasEstimateInput, vehicle]);
 
   useEffect(() => {
     const root = landingRef.current;
@@ -299,6 +323,7 @@ export default function PremiumLanding({ onOpenAuth, copy, theme }) {
                     step="0.5"
                     value={distanceKm}
                     onChange={(event) => setDistanceKm(event.target.value)}
+                    placeholder={copy.quickEstimatorDistancePlaceholder || "e.g. 8"}
                     className="landing-input w-full rounded-2xl px-4 py-3 outline-none"
                   />
                   <select
@@ -306,6 +331,7 @@ export default function PremiumLanding({ onOpenAuth, copy, theme }) {
                     onChange={(event) => setVehicle(event.target.value)}
                     className="landing-input w-full rounded-2xl px-4 py-3 outline-none"
                   >
+                    <option value="" disabled>{copy.quickEstimatorVehiclePlaceholder || "Select vehicle"}</option>
                     <option value="bike">{copy.quickEstimatorBike || "Bike"}</option>
                     <option value="mini">{copy.quickEstimatorMini || "Mini"}</option>
                     <option value="sedan">{copy.quickEstimatorSedan || "Sedan"}</option>
@@ -322,7 +348,7 @@ export default function PremiumLanding({ onOpenAuth, copy, theme }) {
                   data-magnetic-range="190"
                 >
                   <p className="text-sm text-slate-300">
-                    {routeLabel} - {estimatedTrip.distance} km
+                    {estimatedTrip.distance === "--" ? routeLabel : `${routeLabel} - ${estimatedTrip.distance} km`}
                   </p>
                   <div className="mt-4 grid gap-4 sm:grid-cols-2">
                     <div>

@@ -2,6 +2,7 @@ package com.example.backend.security;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import com.example.backend.config.AppSecurityProperties;
 
@@ -98,7 +99,20 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(appSecurityProperties.getNormalizedCorsAllowedOriginPatterns());
+        List<String> configuredOrigins = appSecurityProperties.getNormalizedCorsAllowedOriginPatterns();
+        List<String> exactOrigins = configuredOrigins.stream()
+                .filter(origin -> !origin.contains("*"))
+                .collect(Collectors.toList());
+        List<String> originPatterns = configuredOrigins.stream()
+                .filter(origin -> origin.contains("*"))
+                .collect(Collectors.toList());
+
+        if (!exactOrigins.isEmpty()) {
+            configuration.setAllowedOrigins(exactOrigins);
+        }
+        if (!originPatterns.isEmpty()) {
+            configuration.setAllowedOriginPatterns(originPatterns);
+        }
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Authorization"));

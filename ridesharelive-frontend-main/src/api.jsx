@@ -1,11 +1,26 @@
 const isBrowser = typeof window !== "undefined";
-const defaultApiBase = import.meta.env.DEV
-  ? isBrowser
-    ? `http://${window.location.hostname || "127.0.0.1"}:8080`
-    : "http://127.0.0.1:8080"
-  : isBrowser
-    ? window.location.origin
-    : "";
+const VERCEL_PRODUCTION_API_BASE = "https://backend.sumit-dhondikar.in";
+
+function resolveDefaultApiBase() {
+  if (import.meta.env.DEV) {
+    return isBrowser
+      ? `http://${window.location.hostname || "127.0.0.1"}:8080`
+      : "http://127.0.0.1:8080";
+  }
+
+  if (!isBrowser) {
+    return VERCEL_PRODUCTION_API_BASE;
+  }
+
+  const hostname = window.location.hostname || "";
+  if (hostname.endsWith(".vercel.app")) {
+    return VERCEL_PRODUCTION_API_BASE;
+  }
+
+  return window.location.origin;
+}
+
+const defaultApiBase = resolveDefaultApiBase();
 
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || defaultApiBase)
   .trim()
