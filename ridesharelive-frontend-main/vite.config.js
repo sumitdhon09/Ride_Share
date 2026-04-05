@@ -7,12 +7,16 @@ export default defineConfig({
   build: {
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      external: ['leaflet-routing-machine'],
       output: {
         manualChunks: {
           'react-vendor': ['react', 'react-dom'],
         }
       },
     },
+  },
+  optimizeDeps: {
+    include: ['leaflet-routing-machine'],
   },
   test: {
     environment: 'jsdom',
