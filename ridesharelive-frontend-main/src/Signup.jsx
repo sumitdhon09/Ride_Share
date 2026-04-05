@@ -165,6 +165,8 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         <input
           id="signup-name"
           type="text"
+          name="name"
+          autoComplete="name"
           placeholder="Your name"
           className="auth-input"
           value={name}
@@ -180,6 +182,8 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         <input
           id="signup-email"
           type="email"
+          name="email"
+          autoComplete="email"
           placeholder="you@example.com"
           className="auth-input"
           value={email}
@@ -195,6 +199,8 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         <input
           id="signup-password"
           type="password"
+          name="new-password"
+          autoComplete="new-password"
           placeholder="Create a password"
           className="auth-input"
           value={password}
@@ -210,6 +216,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
           onClick={handleRequestOtp}
           disabled={otpLoading}
         >
+          {otpLoading && <span className="btn-loader" aria-hidden="true" />}
           {otpLoading ? copy.otpLoading : otpRequested ? copy.otpResendAction : copy.otpAction}
         </button>
       </div>
@@ -221,6 +228,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
         <input
           id="signup-otp"
           type="text"
+          name="otp"
           inputMode="numeric"
           autoComplete="one-time-code"
           placeholder={copy.otpPlaceholder}
@@ -236,6 +244,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
       {devOtpHint && <p className="auth-message auth-message--warning">{devOtpHint}</p>}
 
       <button type="submit" className="auth-submit" disabled={loading}>
+        {loading && <span className="btn-loader" aria-hidden="true" />}
         {loading ? copy.createAccountLoading : copy.createAccountAction}
       </button>
 

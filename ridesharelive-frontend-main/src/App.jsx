@@ -9,9 +9,11 @@ import NotificationCenter from "./components/NotificationCenter";
 import PremiumCursor from "./components/PremiumCursor";
 import PremiumLanding from "./components/PremiumLanding";
 import SettingsDrawer from "./components/settings/SettingsDrawer";
-import AdminDashboard from "./pages/AdminDashboard";
-import DriverDashboard from "./pages/DriverDashboard";
-import UserDashboard from "./pages/UserDashboard";
+
+const AdminDashboard = lazy(() => import("./pages/AdminDashboard"));
+const DriverDashboard = lazy(() => import("./pages/DriverDashboard"));
+const UserDashboard = lazy(() => import("./pages/UserDashboard"));
+
 import { apiRequest } from "./api";
 import {
   ACCENT_THEMES,
@@ -859,10 +861,20 @@ function HomeLanding({ onOpenAuth, copy }) {
             </div>
 
             <div className="mt-2 flex flex-wrap gap-3" data-home-hero-reveal>
-              <button className="btn-primary shadow-[0_18px_34px_-18px_rgba(15,23,42,0.38)]" onClick={() => onOpenAuth("signup", "RIDER")}>
+              <button 
+                className="btn-primary shadow-[0_18px_34px_-18px_rgba(15,23,42,0.38)]" 
+                data-magnetic 
+                data-magnetic-strength="30"
+                onClick={() => onOpenAuth("signup", "RIDER")}
+              >
                 {text.heroBookRideCta}
               </button>
-              <button className="btn-secondary" onClick={() => onOpenAuth("signup", "DRIVER")}>
+              <button 
+                className="btn-secondary" 
+                data-magnetic 
+                data-magnetic-strength="20"
+                onClick={() => onOpenAuth("signup", "DRIVER")}
+              >
                 {text.heroDriveEarnCta}
               </button>
             </div>
@@ -1552,6 +1564,20 @@ export default function App() {
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
+
+  // Pre-warm backend on mount to avoid cold starts
+  useEffect(() => {
+    const pingBackend = async () => {
+      try {
+        // Ping any light endpoint or the root to wake up the server
+        fetch(`${API_BASE_URL}/auth/login`, { method: "OPTIONS" }).catch(() => {});
+      } catch {
+        // Ignore errors
+      }
+    };
+    pingBackend();
+  }, []);
+
   const [authMode, setAuthMode] = useState("login");
   const [preferredRole, setPreferredRole] = useState("RIDER");
   const [showAuth, setShowAuth] = useState(false);

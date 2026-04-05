@@ -85,8 +85,11 @@ export function useWebSocketDashboard(token) {
 
     const client = new Client({
       brokerURL: toDashboardWsUrl(),
-      reconnectDelay: 4000,
+      reconnectDelay: 5000,
+      heartbeatIncoming: 4000,
+      heartbeatOutgoing: 4000,
       onConnect: () => {
+        console.log("WebSocket Connected");
         setConnection({ websocketStatus: "connected" });
         DASHBOARD_TOPICS.forEach((topic) => {
           client.subscribe(topic, (frame) => {
@@ -94,14 +97,21 @@ export function useWebSocketDashboard(token) {
           });
         });
       },
+      onDisconnect: () => {
+        console.log("WebSocket Disconnected");
+        setConnection({ websocketStatus: "disconnected" });
+      },
+      onStompError: (frame) => {
+        console.error("STOMP Error:", frame.headers["message"]);
+        setConnection({ websocketStatus: "error" });
+      },
       onWebSocketClose: () => {
-        setConnection({ websocketStatus: "disconnected" });
+        console.log("WebSocket Closed");
+        setConnection({ websocketStatus: "connecting" });
       },
-      onStompError: () => {
-        setConnection({ websocketStatus: "disconnected" });
-      },
-      onWebSocketError: () => {
-        setConnection({ websocketStatus: "disconnected" });
+      onWebSocketError: (event) => {
+        console.error("WebSocket Error:", event);
+        setConnection({ websocketStatus: "error" });
       },
     });
 

@@ -90,8 +90,9 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
     setLocationError("");
     setLoading(true);
     try {
+      // Start location request in background if enabled, don't await it here to avoid blocking login
       if (askLocation) {
-        await requestLiveLocation();
+        requestLiveLocation().catch(() => {}); 
       }
 
       const payload = await apiRequest("/auth/login", "POST", { email, password, role });
@@ -126,6 +127,8 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         <input
           id="login-email"
           type="email"
+          name="email"
+          autoComplete="email"
           placeholder="you@example.com"
           className="auth-input"
           value={email}
@@ -141,6 +144,8 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         <input
           id="login-password"
           type="password"
+          name="password"
+          autoComplete="current-password"
           placeholder="Enter your password"
           className="auth-input"
           value={password}
@@ -175,6 +180,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
       {error && <p className="auth-message auth-message--error">{error}</p>}
 
       <button type="submit" className="auth-submit" disabled={loading}>
+        {loading && <span className="btn-loader" aria-hidden="true" />}
         {loading ? copy.loginLoading : copy.loginAction}
       </button>
 

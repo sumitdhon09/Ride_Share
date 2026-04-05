@@ -4,6 +4,71 @@
 @tailwind components;
 @tailwind utilities;
 
+.skeleton-box {
+  background-color: rgba(148, 163, 184, 0.12) !important;
+  position: relative;
+  overflow: hidden;
+}
+
+.skeleton-shimmer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.08),
+    transparent
+  );
+  animation: skeleton-shine 1.6s infinite;
+}
+
+[data-theme="dark-theme"] .skeleton-box {
+  background-color: rgba(30, 41, 59, 0.5) !important;
+}
+
+@keyframes skeleton-shine {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.btn-loader {
+  display: inline-block;
+  width: 1.15rem;
+  height: 1.15rem;
+  border: 2.2px solid rgba(255, 255, 255, 0.32);
+  border-radius: 50%;
+  border-top-color: #fff;
+  animation: btnSpin 0.72s linear infinite;
+  margin-right: 0.65rem;
+  vertical-align: middle;
+}
+
+[data-theme="peach-glow"] .auth-submit .btn-loader,
+[data-theme="peach-glow"] .auth-otp-action .btn-loader {
+   border-top-color: var(--accent-strong);
+}
+
+@keyframes btnSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.auth-submit:disabled,
+.auth-otp-action:disabled {
+  opacity: 0.82;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+
 :root {
   --app-font-scale: 100%;
   --spot-x: 50vw;
@@ -19,6 +84,8 @@
   --mesh-after: linear-gradient(135deg, #06b6d455, #22c55e45);
   --panel-left: #ffffffd9;
   --panel-right: #fff7e6cc;
+  --reveal-delay: 0ms;
+  --cursor-proximity: 0;
 }
 
 html {
