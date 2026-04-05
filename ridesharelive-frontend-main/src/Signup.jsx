@@ -86,7 +86,7 @@ export default function Signup({ onSignup, labels = {}, defaultRole = "RIDER" })
   const roleCards = [
     { value: "RIDER", label: copy.rider },
     { value: "DRIVER", label: copy.driver },
-    ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: copy.admin }] : []),
+    { value: "ADMIN", label: copy.admin },
   ];
 
   const handleRequestOtp = async () => {

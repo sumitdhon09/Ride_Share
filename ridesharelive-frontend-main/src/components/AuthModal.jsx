@@ -9,7 +9,7 @@ const publicAdminAccessEnabled =
 const ROLE_OPTIONS = [
   { value: "RIDER", label: "Passenger", icon: "P" },
   { value: "DRIVER", label: "Driver", icon: "D" },
-  ...(publicAdminAccessEnabled ? [{ value: "ADMIN", label: "Admin", icon: "A" }] : []),
+  { value: "ADMIN", label: "Admin", icon: "A" },
 ];
 
 const MODES = {
