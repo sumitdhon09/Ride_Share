@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 
-export default function ConfirmButton({ label, disabled, type = "button", onClick }) {
+export default function ConfirmButton({ label, disabled, type = "button", onClick, className = "w-full" }) {
   const [ripples, setRipples] = useState([]);
 
   const spawnRipple = (event) => {
@@ -30,7 +30,7 @@ export default function ConfirmButton({ label, disabled, type = "button", onClic
         spawnRipple(event);
         onClick?.(event);
       }}
-      className={`relative flex w-full items-center justify-center overflow-hidden rounded-[1.4rem] px-6 py-4 text-base font-semibold text-white transition ${
+      className={`relative flex items-center justify-center overflow-hidden rounded-[1.4rem] px-6 py-4 text-base font-semibold text-white transition ${className} ${
         disabled
           ? "cursor-not-allowed bg-slate-300"
           : "bg-slate-950 shadow-[0_24px_50px_-26px_rgba(15,23,42,0.45)]"

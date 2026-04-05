@@ -73,7 +73,7 @@ function getTrackingMapSrc(point) {
   const minLat = clamp(boundedLat - deltaLat, INDIA_BOUNDS.minLat, INDIA_BOUNDS.maxLat);
   const maxLat = clamp(boundedLat + deltaLat, INDIA_BOUNDS.minLat, INDIA_BOUNDS.maxLat);
 
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=mapnik&marker=${boundedLat}%2C${boundedLon}`;
+  return `https://www.openstreetmap.org/export/embed.html?bbox=${minLon}%2C${minLat}%2C${maxLon}%2C${maxLat}&layer=hotosm&marker=${boundedLat}%2C${boundedLon}`;
 }
 
 function getStepClass(index, activeStep, isCompleted = false, isDarkTheme = false) {

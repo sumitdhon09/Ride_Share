@@ -85,6 +85,11 @@ function getNextStep(currentStep) {
   return STEP_ORDER[Math.min(index + 1, STEP_ORDER.length - 1)];
 }
 
+function getPreviousStep(currentStep) {
+  const index = STEP_ORDER.indexOf(currentStep);
+  return STEP_ORDER[Math.max(index - 1, 0)];
+}
+
 export default function BookingPanel({
   onBooked,
   currentLocation = null,
@@ -374,12 +379,24 @@ export default function BookingPanel({
           </div>
         }
         footer={
-          <ConfirmButton
-            type={activeStep === "confirm" ? "submit" : "button"}
-            label={activeStep === "confirm" ? (submitting ? "Booking..." : "Confirm") : "Next"}
-            disabled={!routeReady || submitting}
-            onClick={activeStep === "confirm" ? undefined : () => setActiveStep(getNextStep(activeStep))}
-          />
+          <div className="flex gap-3">
+            {activeStep !== "location" && (
+              <button
+                type="button"
+                onClick={() => setActiveStep(getPreviousStep(activeStep))}
+                className="flex-1 rounded-[1.4rem] border-2 border-slate-300 px-6 py-4 text-base font-semibold text-slate-900 transition hover:bg-slate-100 active:scale-[0.98]"
+              >
+                Back
+              </button>
+            )}
+            <ConfirmButton
+              type={activeStep === "confirm" ? "submit" : "button"}
+              label={activeStep === "confirm" ? (submitting ? "Booking..." : "Confirm") : "Next"}
+              disabled={!routeReady || submitting}
+              onClick={activeStep === "confirm" ? undefined : () => setActiveStep(getNextStep(activeStep))}
+              className={activeStep === "location" ? "w-full" : "flex-1"}
+            />
+          </div>
         }
       />
     </form>

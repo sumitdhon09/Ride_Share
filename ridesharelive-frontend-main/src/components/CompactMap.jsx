@@ -159,7 +159,7 @@ export default function CompactMap({
           try {
             const route = await fetchRouteSummary(nextPickup, nextDrop, controller.signal);
             if (active && Array.isArray(route.path) && route.path.length > 1) {
-              setRoutePath(route.path);
+              setRoutePath([[nextPickup.lat, nextPickup.lon], [nextDrop.lat, nextDrop.lon]]);
               onRouteResolved?.({
                 pickup: nextPickup,
                 drop: nextDrop,
@@ -226,7 +226,7 @@ export default function CompactMap({
     return [pickupPoint, dropPoint].filter(Boolean);
   }, [dropPoint, pickupPoint, routePath, simulatedDrivers]);
 
-  const tileUrl = theme === "dark" ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+  const tileUrl = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
 
   const handleMapSelect = async ({ lat, lon }) => {
     if (!onMapLocationSelect) return;
