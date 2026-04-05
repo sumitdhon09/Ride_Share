@@ -265,14 +265,14 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
     ? "mt-6 grid gap-4 rounded-2xl border border-white/10 bg-white/[0.05] p-4 sm:grid-cols-2"
     : "mt-6 grid gap-4 rounded-2xl border border-slate-200 bg-white/80 p-4 sm:grid-cols-2";
   const cancelPanelShell = isDarkTheme
-    ? "relative mt-6 overflow-hidden rounded-[2rem] border border-rose-500/20 bg-[linear-gradient(165deg,rgba(225,29,72,0.08)_0%,rgba(15,23,42,0.6)_50%,rgba(15,23,42,0.8)_100%)] p-6 shadow-[0_32px_64px_-48px_rgba(225,29,72,0.4),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl sm:p-7"
-    : "relative mt-6 overflow-hidden rounded-[2rem] border border-rose-200/60 bg-[linear-gradient(165deg,rgba(255,241,242,0.9)_0%,rgba(255,255,255,0.95)_50%,rgba(254,242,242,0.9)_100%)] p-6 shadow-[0_28px_56px_-40px_rgba(225,29,72,0.25),inset_0_1px_0_rgba(255,255,255,0.8)] backdrop-blur-xl sm:p-7";
+    ? "relative mt-6 overflow-hidden rounded-[1.5rem] border border-rose-500/12 bg-[linear-gradient(165deg,rgba(225,29,72,0.06)_0%,rgba(15,23,42,0.85)_100%)] p-5 shadow-sm ring-1 ring-inset ring-white/[0.03] sm:p-6"
+    : "relative mt-6 overflow-hidden rounded-[1.5rem] border border-rose-200/40 bg-[linear-gradient(165deg,rgba(255,241,242,0.96)_0%,rgba(255,255,255,0.98)_100%)] p-5 shadow-sm ring-1 ring-[#f8e2db] sm:p-6";
   const cancelGlowClass = isDarkTheme
-    ? "absolute -right-20 -top-20 h-64 w-64 rounded-full bg-rose-500/20 blur-[100px] animate-pulse"
-    : "absolute -right-16 -top-16 h-56 w-56 rounded-full bg-rose-400/25 blur-[80px]";
+    ? "absolute -right-6 -top-6 h-20 w-20 rounded-full bg-rose-500/20 opacity-30"
+    : "absolute -right-5 -top-5 h-16 w-16 rounded-full bg-rose-400/20 opacity-30";
   const cancelIconWrapClass = isDarkTheme
-    ? "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-400/30 bg-gradient-to-br from-rose-500/20 to-rose-600/10 text-rose-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_8px_24px_-12px_rgba(225,29,72,0.4)]"
-    : "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-300/50 bg-gradient-to-br from-rose-50 to-white text-rose-500 shadow-[0_8px_24px_-12px_rgba(225,29,72,0.25)]";
+    ? "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-400/25 bg-gradient-to-br from-rose-500/10 to-rose-600/5 text-rose-300 shadow-sm"
+    : "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-rose-300/40 bg-gradient-to-br from-rose-50 to-white text-rose-500 shadow-sm";
   const cancelEyebrowClass = isDarkTheme
     ? "text-[11px] font-bold uppercase tracking-[0.25em] text-rose-400/90"
     : "text-[11px] font-bold uppercase tracking-[0.25em] text-rose-500";
@@ -307,28 +307,28 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
   const waitingTitleClass = isDarkTheme ? "text-sm font-semibold text-amber-100" : "text-sm font-semibold text-amber-800";
   const waitingBodyClass = isDarkTheme ? "mt-1 text-xs text-amber-200/90" : "mt-1 text-xs text-amber-700";
   const cancelButtonClass = isDarkTheme
-    ? "group relative inline-flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-rose-500 px-6 text-sm font-bold text-white shadow-[0_12px_32px_-8px_rgba(225,29,72,0.5)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_20px_40px_-10px_rgba(225,29,72,0.6)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 sm:w-auto sm:min-w-[12rem]"
-    : "group relative inline-flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-rose-500 px-6 text-sm font-bold text-white shadow-[0_12px_32px_-8px_rgba(225,29,72,0.35)] transition-all duration-300 hover:scale-[1.03] hover:shadow-[0_20px_40px_-10px_rgba(225,29,72,0.45)] active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:scale-100 sm:w-auto sm:min-w-[12rem]";
+    ? "group relative inline-flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-rose-500 px-6 text-sm font-bold text-white shadow-md transition-transform duration-200 hover:scale-[1.05] hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[12rem]"
+    : "group relative inline-flex min-h-[3.25rem] w-full items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-rose-600 to-rose-500 px-6 text-sm font-bold text-white shadow-md transition-transform duration-200 hover:scale-[1.05] hover:shadow-lg active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto sm:min-w-[12rem]";
   const chipContainerClass = "flex flex-wrap gap-2.5";
   const getChipClass = (isSelected) => {
     if (isDarkTheme) {
       return isSelected
-        ? "relative px-4 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-all duration-300 bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_8px_20px_-6px_rgba(225,29,72,0.5)] ring-2 ring-rose-400/50 ring-offset-2 ring-offset-slate-900"
-        : "relative px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-200 border border-white/10 bg-white/[0.05] text-slate-300 hover:border-rose-400/40 hover:bg-rose-500/10 hover:text-rose-200";
+        ? "relative px-4 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-all duration-200 bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-sm ring-1 ring-rose-400/30"
+        : "relative px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-150 border border-white/8 bg-white/[0.04] text-slate-300 hover:border-rose-400/30 hover:bg-rose-500/06 hover:text-rose-200";
     }
     return isSelected
-      ? "relative px-4 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-all duration-300 bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-[0_8px_20px_-6px_rgba(225,29,72,0.35)] ring-2 ring-rose-400/40 ring-offset-2 ring-offset-white"
-      : "relative px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-200 border border-slate-200 bg-white text-slate-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600";
+      ? "relative px-4 py-2.5 rounded-full text-sm font-semibold cursor-pointer transition-all duration-200 bg-gradient-to-r from-rose-500 to-rose-600 text-white shadow-sm ring-1 ring-rose-400/25"
+      : "relative px-4 py-2.5 rounded-full text-sm font-medium cursor-pointer transition-all duration-150 border border-slate-200 bg-white text-slate-600 hover:border-rose-300 hover:bg-rose-50 hover:text-rose-600";
   };
   const warningBoxClass = isDarkTheme
-    ? "relative mt-4 overflow-hidden rounded-2xl border border-rose-500/25 bg-[linear-gradient(135deg,rgba(225,29,72,0.15)_0%,rgba(127,29,29,0.1)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_8px_24px_-12px_rgba(225,29,72,0.3)] backdrop-blur-sm"
-    : "relative mt-4 overflow-hidden rounded-2xl border border-rose-200 bg-[linear-gradient(135deg,rgba(254,242,242,0.9)_0%,rgba(255,255,255,0.95)_100%)] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.8),0_8px_24px_-12px_rgba(225,29,72,0.15)]";
+    ? "relative mt-4 overflow-hidden rounded-2xl border border-rose-500/18 bg-[linear-gradient(135deg,rgba(225,29,72,0.08)_0%,rgba(127,29,29,0.05)_100%)] p-4 shadow-sm"
+    : "relative mt-4 overflow-hidden rounded-2xl border border-rose-200 bg-[linear-gradient(135deg,rgba(254,242,242,0.97)_0%,rgba(255,255,255,0.98)_100%)] p-4 shadow-sm";
   const modalBackdropClass = isDarkTheme
-    ? "fixed inset-0 z-50 bg-black/60 backdrop-blur-xl"
-    : "fixed inset-0 z-50 bg-black/50 backdrop-blur-xl";
+    ? "fixed inset-0 z-50 bg-black/50"
+    : "fixed inset-0 z-50 bg-black/40";
   const confirmModalClass = isDarkTheme
-    ? "relative w-full max-w-md rounded-[2rem] border border-rose-500/20 bg-[linear-gradient(165deg,rgba(30,27,75,0.95)_0%,rgba(15,23,42,0.98)_100%)] p-7 shadow-[0_32px_64px_-48px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.05)] backdrop-blur-2xl"
-    : "relative w-full max-w-md rounded-[2rem] border border-rose-200/70 bg-[linear-gradient(165deg,rgba(255,255,255,0.98)_0%,rgba(254,242,242,0.95)_100%)] p-7 shadow-[0_28px_56px_-40px_rgba(225,29,72,0.3),inset_0_1px_0_rgba(255,255,255,0.9)] backdrop-blur-xl";
+    ? "relative w-full max-w-md rounded-[1.25rem] border border-rose-500/12 bg-[linear-gradient(165deg,rgba(30,27,75,0.97),rgba(15,23,42,0.99))] p-6 shadow-md"
+    : "relative w-full max-w-md rounded-[1.25rem] border border-rose-200/40 bg-[linear-gradient(165deg,rgba(255,255,255,0.99),rgba(254,242,242,0.98))] p-6 shadow-md";
   const modalContentClass = "fixed inset-0 z-50 flex items-center justify-center p-4";
   const keepRideButtonClass = isDarkTheme
     ? "inline-flex min-h-[3.25rem] w-full items-center justify-center rounded-2xl border border-white/15 bg-white/5 px-6 text-sm font-bold text-slate-200 transition-all duration-200 hover:bg-white/10 hover:border-white/25 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 sm:w-auto sm:min-w-[10rem]"
@@ -542,8 +542,8 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
               <div className="flex items-start gap-4">
                 <MotionDiv
                   className={cancelIconWrapClass}
-                  whileHover={{ scale: 1.05, rotate: 5 }}
-                  transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                  whileHover={{ scale: 1.03 }}
+                  transition={{ duration: 0.18 }}
                 >
                   <AlertTriangle className="h-5 w-5" strokeWidth={2.25} aria-hidden />
                 </MotionDiv>
@@ -565,35 +565,24 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                       key={option.id}
                       onClick={() => setCancelReason(option.id)}
                       className={getChipClass(cancelReason === option.id)}
-                      initial={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={reduceMotion ? { duration: 0 } : { delay: index * 0.05, duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                      whileHover={{ scale: 1.05, y: -2 }}
-                      whileTap={{ scale: 0.95 }}
+                      initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.98 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      transition={reduceMotion ? { duration: 0 } : { delay: index * 0.03, duration: 0.22 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                     >
-                      {/* Selection indicator */}
+                      {/* Selection indicator (micro-interaction: color fill + gentle bounce) */}
                       {cancelReason === option.id && (
                         <MotionDiv
-                          className={`absolute inset-0 rounded-full ${isDarkTheme ? "bg-rose-400/20" : "bg-rose-400/10"}`}
-                          layoutId="chipHighlight"
-                          initial={{ opacity: 0 }}
-                          animate={{ opacity: 1 }}
-                          exit={{ opacity: 0 }}
-                          transition={{ duration: 0.2 }}
+                          className={`absolute inset-0 rounded-full ${isDarkTheme ? "bg-rose-400/12" : "bg-rose-400/06"}`}
+                          initial={{ opacity: 0, scale: 0.92 }}
+                          animate={{ opacity: 1, scale: [1.06, 0.98, 1] }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
                         />
                       )}
                       <span className="relative z-10 mr-1.5 text-base">{option.emoji}</span>
                       <span className="relative z-10">{option.label}</span>
-
-                      {/* Bounce animation on select */}
-                      {cancelReason === option.id && !reduceMotion && (
-                        <MotionDiv
-                          className="absolute inset-0 rounded-full"
-                          initial={{ scale: 1 }}
-                          animate={{ scale: [1, 1.1, 1] }}
-                          transition={{ duration: 0.3, ease: "easeOut" }}
-                        />
-                      )}
                     </MotionDiv>
                   ))}
                 </div>
@@ -607,10 +596,6 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                 transition={reduceMotion ? { duration: 0 } : { delay: 0.2, duration: 0.3 }}
               >
                 {/* Glow effect inside warning box */}
-                <div
-                  className={`pointer-events-none absolute -left-8 -top-8 h-32 w-32 rounded-full blur-3xl ${isDarkTheme ? "bg-rose-500/30" : "bg-rose-400/20"}`}
-                  aria-hidden
-                />
                 <div className="relative flex items-start gap-3">
                   <Info className={`mt-0.5 h-4 w-4 shrink-0 ${isDarkTheme ? "text-rose-300" : "text-rose-500"}`} />
                   <div>
@@ -686,15 +671,15 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                 <div className={modalContentClass}>
                   <MotionDiv
                     className={confirmModalClass}
-                    initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.8, y: 40, filter: "blur(10px)" }}
-                    animate={{ opacity: 1, scale: 1, y: 0, filter: "blur(0px)" }}
-                    exit={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.9, y: 20, filter: "blur(8px)" }}
-                    transition={reduceMotion ? { duration: 0 } : { duration: 0.35, ease: [0.34, 1.56, 0.64, 1] }}
+                    initial={reduceMotion ? { opacity: 1, scale: 1 } : { opacity: 0, scale: 0.97 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
+                    transition={reduceMotion ? { duration: 0 } : { duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     {/* Modal glow */}
                     <div
-                      className={`pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full blur-[100px] ${isDarkTheme ? "bg-rose-500/20" : "bg-rose-400/15"}`}
+                      className={`pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full ${isDarkTheme ? "bg-rose-500/16" : "bg-rose-400/12"} opacity-30`}
                       aria-hidden
                     />
 
@@ -702,9 +687,9 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                       {/* Icon */}
                       <MotionDiv
                         className={`mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl ${isDarkTheme ? "bg-rose-500/20 text-rose-300" : "bg-rose-100 text-rose-600"}`}
-                        initial={reduceMotion ? { scale: 1 } : { scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={reduceMotion ? { duration: 0 } : { delay: 0.1, type: "spring", stiffness: 300, damping: 20 }}
+                        initial={reduceMotion ? { scale: 1 } : { scale: 0.95, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={reduceMotion ? { duration: 0 } : { duration: 0.22, ease: [0.22, 1, 0.36, 1], delay: 0.06 }}
                       >
                         <AlertTriangle className="h-8 w-8" strokeWidth={2} />
                       </MotionDiv>
@@ -722,9 +707,9 @@ export default function RideStatus({ ride, onComplete, theme = "light" }) {
                       {/* Selected reason display */}
                       <MotionDiv
                         className={`mt-5 rounded-xl border p-4 ${isDarkTheme ? "border-white/10 bg-white/5" : "border-slate-200 bg-slate-50/80"}`}
-                        initial={reduceMotion ? { opacity: 1 } : { opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={reduceMotion ? { duration: 0 } : { delay: 0.15 }}
+                        initial={reduceMotion ? { opacity: 1 } : { opacity: 0, scale: 0.98 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={reduceMotion ? { duration: 0 } : { duration: 0.18, ease: "ease-out" }}
                       >
                         <p className={`text-xs font-bold uppercase tracking-wide ${isDarkTheme ? "text-slate-500" : "text-slate-400"}`}>
                           Selected Reason
