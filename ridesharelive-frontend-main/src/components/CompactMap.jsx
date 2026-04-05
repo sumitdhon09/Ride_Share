@@ -243,23 +243,6 @@ export default function CompactMap({
 
   return (
     <div className="relative overflow-hidden rounded-[2rem] bg-white border border-slate-200">
-      <div className="absolute top-4 left-1/2 -translate-x-1/2 z-[500] flex bg-white rounded-full p-1 shadow border border-slate-200">
-        {[3, 5, 10].map(r => (
-          <button
-            key={r}
-            type="button"
-            onClick={() => onRadiusChange?.(r)}
-            className={`px-3 py-1 rounded-full text-xs font-bold ${
-              searchRadiusKm === r 
-              ? "bg-slate-900 text-white" 
-              : "text-slate-600"
-            }`}
-          >
-            {r}KM
-          </button>
-        ))}
-      </div>
-
       {selectionStatus ? (
         <div className="absolute left-4 top-16 z-[500] rounded bg-slate-900 px-2 py-1 text-[10px] font-bold text-white">
           {selectionStatus}
