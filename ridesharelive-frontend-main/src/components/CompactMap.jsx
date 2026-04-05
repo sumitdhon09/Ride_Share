@@ -159,7 +159,7 @@ export default function CompactMap({
           try {
             const route = await fetchRouteSummary(nextPickup, nextDrop, controller.signal);
             if (active && Array.isArray(route.path) && route.path.length > 1) {
-              setRoutePath([[nextPickup.lat, nextPickup.lon], [nextDrop.lat, nextDrop.lon]]);
+              setRoutePath(route.path);
               onRouteResolved?.({
                 pickup: nextPickup,
                 drop: nextDrop,
@@ -218,10 +218,10 @@ export default function CompactMap({
   }, [currentLocation, dropPoint, pickupPoint]);
 
   const viewportPoints = useMemo(() => {
+    if (routePath.length > 1) return routePath;
     if (pickupPoint && simulatedDrivers.length > 0) {
       return [pickupPoint, ...simulatedDrivers.map(d => [d.simLat, d.simLon])];
     }
-    if (routePath.length > 1) return routePath;
     if (pickupPoint && dropPoint) return [pickupPoint, dropPoint];
     return [pickupPoint, dropPoint].filter(Boolean);
   }, [dropPoint, pickupPoint, routePath, simulatedDrivers]);
@@ -254,6 +254,19 @@ export default function CompactMap({
           <TileLayer url={tileUrl} />
           <MapViewport points={viewportPoints} center={center} />
           <MapSelectionHandler enabled={Boolean(onMapLocationSelect)} onSelect={handleMapSelect} />
+          
+          {routePath.length > 1 && (
+            <>
+              <Polyline 
+                positions={routePath} 
+                pathOptions={{ color: "#ffffff", weight: 6, opacity: 0.5, lineCap: "round", lineJoin: "round" }} 
+              />
+              <Polyline 
+                positions={routePath} 
+                pathOptions={{ color: "#2563eb", weight: 3.5, opacity: 0.9, lineCap: "round", lineJoin: "round" }} 
+              />
+            </>
+          )}
           
           {pickupPoint && (
             <Circle 
@@ -295,13 +308,6 @@ export default function CompactMap({
               </Tooltip>
             </Marker>
           ))}
-
-          {routePath.length > 1 && (
-            <Polyline 
-              positions={routePath} 
-              pathOptions={{ color: "#0f172a", weight: 3, opacity: 0.6 }} 
-            />
-          )}
         </MapContainer>
       </div>
 

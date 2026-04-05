@@ -56,7 +56,7 @@ const AdminHeader = forwardRef(function AdminHeader(
             className={`rounded-[1.2rem] border px-4 py-3 text-sm outline-none transition ${
               isDark
                 ? "border-slate-700/70 bg-[#0d1729]/88 text-slate-100 placeholder:text-slate-500 focus:border-cyan-400/32 focus:bg-[#101d33]"
-                : "border-slate-200 bg-slate-50 text-slate-900 focus:border-sky-300"
+                : "border-slate-200 bg-white text-slate-900 placeholder:text-slate-400 focus:border-sky-300 focus:ring-1 focus:ring-sky-200"
             }`}
           />
           <div className="flex flex-wrap gap-2">
@@ -69,10 +69,10 @@ const AdminHeader = forwardRef(function AdminHeader(
                   dateRange === item
                     ? isDark
                       ? "border-cyan-400/24 bg-cyan-400/[0.08] text-cyan-100 shadow-[inset_0_0_0_1px_rgba(34,211,238,0.14)]"
-                      : "border-sky-200 bg-sky-50 text-sky-700"
+                      : "border-sky-300 bg-sky-100 text-sky-700 shadow-sm"
                     : isDark
                       ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-300 hover:border-slate-600 hover:text-slate-100"
-                      : "border-slate-200 bg-slate-50 text-slate-700"
+                      : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
                 }`}
               >
                 {item}
@@ -86,10 +86,10 @@ const AdminHeader = forwardRef(function AdminHeader(
               alertsOnly
                 ? isDark
                   ? "border-amber-400/24 bg-amber-400/[0.08] text-amber-100 shadow-[inset_0_0_0_1px_rgba(251,191,36,0.12)]"
-                  : "border-amber-200 bg-amber-50 text-amber-700"
+                  : "border-amber-300 bg-amber-100 text-amber-700 shadow-sm"
                 : isDark
                   ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-300 hover:border-slate-600 hover:text-slate-100"
-                  : "border-slate-200 bg-slate-50 text-slate-700"
+                  : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"
             }`}
           >
             Alerts
@@ -101,7 +101,7 @@ const AdminHeader = forwardRef(function AdminHeader(
           </button>
           <div className="flex items-center gap-3">
             {onExport ? (
-              <button type="button" onClick={onExport} className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-200 hover:border-slate-600" : "border-slate-200 bg-slate-50 text-slate-700"}`}>
+              <button type="button" onClick={onExport} className={`rounded-[1.2rem] border px-4 py-3 text-sm font-semibold ${isDark ? "border-slate-700/70 bg-[#0f1a2d]/82 text-slate-200 hover:border-slate-600" : "border-slate-300 bg-white text-slate-700 hover:bg-slate-50"}`}>
                 Export CSV
               </button>
             ) : null}

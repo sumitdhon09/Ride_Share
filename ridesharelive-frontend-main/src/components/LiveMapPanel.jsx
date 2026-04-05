@@ -1,30 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 function resolveMapTone(themeName) {
-  switch (themeName) {
-    case "dark-theme":
-      return "night";
-    case "ocean":
-    case "smart-mobility":
-      return "ocean";
-    case "forest":
-    case "eco-friendly-ride":
-    case "ola":
-    case "electric-mobility":
-      return "forest";
-    case "uber":
-    case "urban-transport":
-      return "graphite";
-    case "lyft":
-    case "friendly-community":
-      return "rose";
-    case "premium-ride":
-    case "rapido":
-    case "classic-taxi":
-      return "amber";
-    default:
-      return "amber";
-  }
+  // Always use light theme for maps regardless of app theme
+  return "light";
 }
 
 function clamp(value, min, max) {
