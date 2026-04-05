@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { apiRequest } from "../api";
 import { ALL_INDIA_CITIES } from "../data/indiaCities";
 import { formatPaymentModeLabel } from "../utils/paymentPresentation";
+import { loadRazorpayCheckout } from "../utils/razorpay";
 
 const RIDE_TYPES = [
   { id: "economy", label: "Economy", surcharge: 0 },
@@ -379,12 +380,57 @@ export default function RideBookingForm({
     try {
       const sanitizedPickup = pickup.trim();
       const sanitizedDrop = drop.trim();
-      const paymentReference =
-        paymentMode === "CARD"
-          ? `DUMMY-CARD-${normalizedCardNumber.slice(-4)}`
-          : paymentMode === "UPI"
-            ? `DUMMY-UPI-${normalizedUpi}`
-            : "Cash";
+      let paymentReference = "Cash";
+
+      if (paymentMode === "CARD" || paymentMode === "UPI" || paymentMode === "WALLET") {
+        const orderRequest = {
+          amountInInr: fareEstimate,
+          rideSummary: `${sanitizedPickup} to ${sanitizedDrop}`,
+          paymentMode,
+        };
+
+        const sessionResponse = await apiRequest("/payments/order", "POST", orderRequest, token);
+
+        if (sessionResponse.isMock) {
+          paymentReference = sessionResponse.sessionId;
+        } else {
+          const Razorpay = await loadRazorpayCheckout();
+          paymentReference = await new Promise((resolve, reject) => {
+            const options = {
+              key: sessionResponse.keyId,
+              amount: sessionResponse.amountMinor,
+              currency: sessionResponse.currency,
+              name: sessionResponse.name,
+              description: sessionResponse.description,
+              order_id: sessionResponse.orderId,
+              handler: async (response) => {
+                try {
+                  const verifyRequest = {
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    signature: response.razorpay_signature,
+                    paymentMode,
+                  };
+                  const verifyResponse = await apiRequest("/payments/verify", "POST", verifyRequest, token);
+                  resolve(verifyResponse.paymentReference);
+                } catch (verifyError) {
+                  reject(new Error(verifyError.message || "Payment verification failed"));
+                }
+              },
+              modal: {
+                ondismiss: () => {
+                  reject(new Error("Payment was cancelled."));
+                },
+              },
+            };
+            const rzp = new Razorpay(options);
+            rzp.on("payment.failed", (response) => {
+              reject(new Error(response.error.description || "Payment failed."));
+            });
+            rzp.open();
+          });
+        }
+      }
 
       const bookingPayload = {
         pickupLocation: sanitizedPickup,

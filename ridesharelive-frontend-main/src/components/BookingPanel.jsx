@@ -240,11 +240,64 @@ export default function BookingPanel({
 
     setSubmitting(true);
     try {
+      let paymentReference = "";
+
+      if (paymentMode === "CARD" || paymentMode === "UPI" || paymentMode === "WALLET") {
+        const orderRequest = {
+          amountInInr: displayFareEstimate,
+          rideSummary: `${pickup.trim()} to ${drop.trim()}`,
+          paymentMode,
+        };
+
+        const sessionResponse = await apiRequest("/payments/order", "POST", orderRequest, token);
+
+        if (sessionResponse.isMock) {
+          paymentReference = sessionResponse.sessionId;
+        } else {
+          const Razorpay = await loadRazorpayCheckout();
+          paymentReference = await new Promise((resolve, reject) => {
+            const options = {
+              key: sessionResponse.keyId,
+              amount: sessionResponse.amountMinor,
+              currency: sessionResponse.currency,
+              name: sessionResponse.name,
+              description: sessionResponse.description,
+              order_id: sessionResponse.orderId,
+              handler: async (response) => {
+                try {
+                  const verifyRequest = {
+                    orderId: response.razorpay_order_id,
+                    paymentId: response.razorpay_payment_id,
+                    signature: response.razorpay_signature,
+                    paymentMode,
+                  };
+                  const verifyResponse = await apiRequest("/payments/verify", "POST", verifyRequest, token);
+                  resolve(verifyResponse.paymentReference);
+                } catch (verifyError) {
+                  reject(new Error(verifyError.message || "Payment verification failed"));
+                }
+              },
+              modal: {
+                ondismiss: () => {
+                  reject(new Error("Payment was cancelled."));
+                },
+              },
+            };
+            const rzp = new Razorpay(options);
+            rzp.on("payment.failed", (response) => {
+              reject(new Error(response.error.description || "Payment failed."));
+            });
+            rzp.open();
+          });
+        }
+      }
+
       const payload = {
         pickupLocation: buildManualLocationLabel(pickup.trim(), pickupLandmark),
         dropLocation: buildManualLocationLabel(drop.trim(), dropLandmark),
         fare: displayFareEstimate,
         paymentMode,
+        paymentReference,
         pickupLat: (pickupSelection || resolvedPickupSelection)?.lat,
         pickupLon: (pickupSelection || resolvedPickupSelection)?.lon,
         dropLat: (dropSelection || resolvedDropSelection)?.lat,
