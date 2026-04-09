@@ -1,8 +1,13 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="BackendApplication" type="SpringBootApplicationConfigurationType" factoryName="Spring Boot">
     <option name="ACTIVE_PROFILES" value="local" />
-    <module name="backend" />
-    <option name="SPRING_BOOT_MAIN_CLASS" value="com.example.backend.BackendApplication" />
+    <option name="ALTERNATIVE_JRE_PATH" value="17" />
+    <option name="ALTERNATIVE_JRE_PATH_ENABLED" value="true" />
+    <envs>
+      <env name="OPENROUTER_API_KEY" value="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" />
+    </envs>
+    <module name="Ride-Share" />
+    <option name="SPRING_BOOT_MAIN_CLASS" value="com.example.backend." />
     <option name="WORKING_DIRECTORY" value="file://$MODULE_WORKING_DIR$" />
     <method v="2">
       <option name="Make" enabled="true" />
