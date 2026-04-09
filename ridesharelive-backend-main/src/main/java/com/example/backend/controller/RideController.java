@@ -22,6 +22,9 @@ import com.example.backend.service.RidePredictiveInsightsService;
 import com.example.backend.service.RideService;
 import com.example.backend.service.UserService;
 
+import com.example.backend.dto.RideBookingRequest;
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/rides")
 public class RideController {
@@ -36,12 +39,10 @@ public class RideController {
     private RidePredictiveInsightsService ridePredictiveInsightsService;
 
     @PostMapping("/book")
-    public ResponseEntity<?> bookRide(@RequestBody Ride ride, @AuthenticationPrincipal UserDetails userDetails) {
+    public ResponseEntity<?> bookRide(@Valid @RequestBody RideBookingRequest request, @AuthenticationPrincipal UserDetails userDetails) {
         User rider = userService.findByEmail(userDetails.getUsername()).orElseThrow();
-        ride.setRiderId(rider.getId());
-        ride.setStatus(Ride.Status.REQUESTED);
         try {
-            Ride savedRide = rideService.bookRide(ride);
+            Ride savedRide = rideService.bookRide(rider, request);
             return ResponseEntity.ok(savedRide);
         } catch (IllegalArgumentException bookingError) {
             return ResponseEntity.badRequest().body(bookingError.getMessage());

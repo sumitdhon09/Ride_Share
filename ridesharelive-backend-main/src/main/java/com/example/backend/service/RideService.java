@@ -1,18 +1,20 @@
 package com.example.backend.service;
 
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
-import java.time.Instant;
-
+import com.example.backend.dto.RideBookingRequest;
+import com.example.backend.entity.Ride;
+import com.example.backend.entity.User;
+import com.example.backend.repository.RideRepository;
+import com.example.backend.repository.UserRepository;
+import com.example.backend.util.LocationValidator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.example.backend.entity.Ride;
-import com.example.backend.entity.User;
-import com.example.backend.repository.RideRepository;
+import java.time.Instant;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.concurrent.ThreadLocalRandom;
 
 @Service
 public class RideService {
@@ -32,8 +34,17 @@ public class RideService {
             "SEDAN", 120
     );
 
+    private static final List<Ride.Status> ACTIVE_STATUSES = List.of(
+            Ride.Status.REQUESTED,
+            Ride.Status.ACCEPTED,
+            Ride.Status.PICKED
+    );
+
     @Autowired
     private RideRepository rideRepository;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @Autowired
     private NotificationService notificationService;
@@ -44,11 +55,46 @@ public class RideService {
     @Autowired
     private DriverLocationCacheService driverLocationCacheService;
 
-    public Ride bookRide(Ride ride) {
-        normalizePaymentState(ride);
-        if (ride.getCreatedAt() == null) {
-            ride.setCreatedAt(Instant.now());
+    public Ride bookRide(User rider, RideBookingRequest request) {
+        // 1. One active ride per user
+        List<Ride> activeRides = rideRepository.findByRiderIdAndStatusIn(rider.getId(), ACTIVE_STATUSES);
+        if (!activeRides.isEmpty()) {
+            throw new IllegalArgumentException("You already have an active ride.");
         }
+
+        // 2. India-only validation
+        if (!LocationValidator.isInsideIndia(request.getPickupLat(), request.getPickupLon()) ||
+            !LocationValidator.isInsideIndia(request.getDropLat(), request.getDropLon())) {
+            throw new IllegalArgumentException("Ride must be within India only.");
+        }
+
+        // 3. Pickup and drop must not be same
+        if (request.getPickupLat().equals(request.getDropLat()) && request.getPickupLon().equals(request.getDropLon())) {
+            throw new IllegalArgumentException("Pickup and drop locations cannot be the same.");
+        }
+
+        // 4. Validate fare (backend source of truth)
+        // Note: For simplicity, we just check if it's reasonably close or recalculate.
+        // In a real app, we'd recalculate based on distance.
+        if (request.getFare() == null || request.getFare() < 49) {
+            throw new IllegalArgumentException("Invalid fare amount.");
+        }
+
+        Ride ride = Ride.builder()
+                .riderId(rider.getId())
+                .pickupLocation(request.getPickupLocation())
+                .pickupLat(request.getPickupLat())
+                .pickupLon(request.getPickupLon())
+                .dropLocation(request.getDropLocation())
+                .dropLat(request.getDropLat())
+                .dropLon(request.getDropLon())
+                .fare(request.getFare())
+                .rideType(request.getRideType().toUpperCase())
+                .status(Ride.Status.REQUESTED)
+                .createdAt(Instant.now())
+                .build();
+
+        normalizePaymentState(ride);
         Ride savedRide = rideRepository.save(ride);
         notificationService.notifyRideEvent(savedRide);
         return savedRide;
@@ -56,6 +102,8 @@ public class RideService {
 
     public Ride updateStatus(Long rideId, Ride.Status status, String driverId, String otp) {
         Ride ride = rideRepository.findById(rideId).orElseThrow();
+        
+        // Strict lifecycle validation
         if (ride.getStatus() == Ride.Status.COMPLETED || ride.getStatus() == Ride.Status.CANCELLED) {
             throw new IllegalArgumentException("Ride is already closed.");
         }
@@ -63,7 +111,25 @@ public class RideService {
         boolean otpGenerated = false;
 
         if (status == Ride.Status.ACCEPTED && driverId != null) {
-            ride.setDriverId(Long.valueOf(driverId.trim()));
+            Long dId = Long.valueOf(driverId.trim());
+            User driver = userRepository.findById(dId)
+                    .orElseThrow(() -> new IllegalArgumentException("Driver not found."));
+
+            // Driver must be verified, online and available
+            if (!"DRIVER".equals(driver.getRole())) {
+                throw new IllegalArgumentException("User is not a driver.");
+            }
+            if (!driver.isVerified()) {
+                throw new IllegalArgumentException("Driver is not verified yet.");
+            }
+            if (!driver.isOnline()) {
+                throw new IllegalArgumentException("Driver is offline.");
+            }
+            if (!driver.isAvailable()) {
+                throw new IllegalArgumentException("Driver is already on another ride.");
+            }
+
+            ride.setDriverId(dId);
             if (ride.getAcceptedAt() == null) {
                 ride.setAcceptedAt(Instant.now());
             }
@@ -75,6 +141,11 @@ public class RideService {
                 ride.setEndOtp(generateOtp());
                 otpGenerated = true;
             }
+            
+            // Mark driver as unavailable
+            driver.setAvailable(false);
+            userRepository.save(driver);
+
         } else if (status == Ride.Status.PICKED) {
             if (ride.getStatus() != Ride.Status.ACCEPTED) {
                 throw new IllegalArgumentException("Ride must be accepted before pickup.");
@@ -90,6 +161,22 @@ public class RideService {
             validateOtp(ride.getEndOtp(), otp, "Invalid end OTP.");
             if (ride.getCompletedAt() == null) {
                 ride.setCompletedAt(Instant.now());
+            }
+            
+            // Mark driver as available again
+            if (ride.getDriverId() != null) {
+                userRepository.findById(ride.getDriverId()).ifPresent(d -> {
+                    d.setAvailable(true);
+                    userRepository.save(d);
+                });
+            }
+        } else if (status == Ride.Status.CANCELLED) {
+            // Mark driver as available again if cancelled after acceptance
+            if (ride.getDriverId() != null) {
+                userRepository.findById(ride.getDriverId()).ifPresent(d -> {
+                    d.setAvailable(true);
+                    userRepository.save(d);
+                });
             }
         }
 

@@ -26,13 +26,23 @@ const ALERT_TRANSITION = {
   transition: { duration: 0.24, ease: [0.22, 1, 0.36, 1] },
 };
 
+function resolveLoginErrorMessage(error) {
+  const rawMessage = String(error?.message || "").trim();
+  
+  if (error?.payload && typeof error.payload === "object") {
+      const messages = Object.values(error.payload);
+      if (messages.length > 0) {
+          return messages[0];
+      }
+  }
+  return rawMessage || "Unable to login.";
+}
+
 export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState(defaultRole === "DRIVER" ? "DRIVER" : "RIDER");
-  const [askLocation, setAskLocation] = useState(true);
   const [error, setError] = useState("");
-  const [locationError, setLocationError] = useState("");
   const [loading, setLoading] = useState(false);
   const [focusedField, setFocusedField] = useState("");
   const [touched, setTouched] = useState({
@@ -43,9 +53,6 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
     role: "Login as",
     rider: "Rider",
     driver: "Driver",
-    locationPermission: "Ask for live location access",
-    useLocationNow: "Use live location now",
-    locationDenied: "Location permission denied. You can continue without it.",
     email: "Email",
     password: "Password",
     loginAction: "Login",
@@ -58,34 +65,6 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
   ];
   const emailError = touched.email ? validateEmail(email) : "";
   const passwordError = touched.password ? validatePassword(password) : "";
-
-  const requestLiveLocation = () =>
-    new Promise((resolve) => {
-      if (!navigator.geolocation) {
-        setLocationError(copy.locationDenied);
-        resolve(null);
-        return;
-      }
-
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const payload = {
-            lat: position.coords.latitude,
-            lon: position.coords.longitude,
-            accuracy: position.coords.accuracy,
-            capturedAt: new Date().toISOString(),
-          };
-          localStorage.setItem("liveLocation", JSON.stringify(payload));
-          setLocationError("");
-          resolve(payload);
-        },
-        () => {
-          setLocationError(copy.locationDenied);
-          resolve(null);
-        },
-        { enableHighAccuracy: true, timeout: 10000 }
-      );
-    });
 
   useEffect(() => {
     setRole(defaultRole === "DRIVER" ? "DRIVER" : "RIDER");
@@ -107,18 +86,13 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
     }
 
     setError("");
-    setLocationError("");
     setLoading(true);
     try {
-      if (askLocation) {
-        await requestLiveLocation();
-      }
-
       const payload = await apiRequest("/auth/login", "POST", { email, password, role });
       storeAuthSession(payload);
       onLogin?.(payload);
     } catch (requestError) {
-      setError(requestError.message || "Unable to login.");
+      setError(resolveLoginErrorMessage(requestError));
     } finally {
       setLoading(false);
     }
@@ -126,10 +100,27 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
 
   return (
     <form onSubmit={handleSubmit} className="auth-form">
+      <div className="auth-role-shell">
+        <div className="auth-role-grid" aria-label={copy.role}>
+          {roleCards.map((item) => (
+            <MotionButton
+              key={item.value}
+              type="button"
+              className={`auth-role-card ${role === item.value ? "auth-role-card--active" : ""}`}
+              onClick={() => setRole(item.value)}
+              {...CARD_INTERACTION}
+            >
+              <span className="auth-role-card__badge">{item.value === "RIDER" ? "R" : "D"}</span>
+              <span className="auth-role-card__copy">
+                <strong>{item.label}</strong>
+                <small>{item.hint}</small>
+              </span>
+            </MotionButton>
+          ))}
+        </div>
+      </div>
+
       <div className="auth-field">
-        <label className="auth-field__label" htmlFor="login-email">
-          {copy.email}
-        </label>
         <input
           id="login-email"
           name="email"
@@ -137,7 +128,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
           autoComplete="username"
           autoCapitalize="none"
           spellCheck={false}
-          placeholder="you@example.com"
+          placeholder={copy.email}
           className={`auth-input ${focusedField === "email" ? "auth-input--focused" : ""}`}
           value={email}
           onChange={(event) => setEmail(event.target.value)}
@@ -158,15 +149,12 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
       </div>
 
       <div className="auth-field">
-        <label className="auth-field__label" htmlFor="login-password">
-          {copy.password}
-        </label>
         <input
           id="login-password"
           name="password"
           type="password"
           autoComplete="current-password"
-          placeholder="Enter your password"
+          placeholder={copy.password}
           className={`auth-input ${focusedField === "password" ? "auth-input--focused" : ""}`}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -186,27 +174,7 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
         )}
       </div>
 
-      <MotionDiv className="auth-utility-card" whileHover={{ y: -1 }} transition={{ duration: 0.2 }}>
-        <label className="auth-checkbox">
-          <input
-            type="checkbox"
-            checked={askLocation}
-            onChange={(event) => setAskLocation(event.target.checked)}
-            className="auth-checkbox__control"
-          />
-          <span>{copy.locationPermission}</span>
-        </label>
-        <MotionButton type="button" className="auth-utility-action" onClick={requestLiveLocation} {...BUTTON_INTERACTION}>
-          {copy.useLocationNow}
-        </MotionButton>
-      </MotionDiv>
-
       <AnimatePresence mode="popLayout">
-        {locationError ? (
-          <MotionP key={`login-location-${locationError}`} className="auth-message auth-message--warning" {...ALERT_TRANSITION}>
-            {locationError}
-          </MotionP>
-        ) : null}
         {error ? (
           <MotionP
             key={`login-error-${error}`}
@@ -224,24 +192,6 @@ export default function Login({ onLogin, labels = {}, defaultRole = "RIDER" }) {
       <MotionButton type="submit" className="auth-submit" disabled={loading} {...BUTTON_INTERACTION}>
         {loading ? copy.loginLoading : copy.loginAction}
       </MotionButton>
-
-      <div className="auth-role-grid" aria-label={copy.role}>
-        {roleCards.map((item) => (
-          <MotionButton
-            key={item.value}
-            type="button"
-            className={`auth-role-card ${role === item.value ? "auth-role-card--active" : ""}`}
-            onClick={() => setRole(item.value)}
-            {...CARD_INTERACTION}
-          >
-            <span className="auth-role-card__badge">{item.value === "RIDER" ? "R" : "D"}</span>
-            <span className="auth-role-card__copy">
-              <strong>{item.label}</strong>
-              <small>{item.hint}</small>
-            </span>
-          </MotionButton>
-        ))}
-      </div>
     </form>
   );
 }

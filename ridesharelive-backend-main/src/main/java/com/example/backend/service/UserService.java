@@ -43,34 +43,46 @@ public class UserService {
         return "RIDER";
     }
 
-    public User registerUser(User user) {
+    public User registerUser(User user, String confirmPassword) {
+        if (user.getPassword() != null && !user.getPassword().equals(confirmPassword)) {
+            throw new IllegalArgumentException("Passwords do not match.");
+        }
+
         String normalizedEmail = normalizeEmail(user.getEmail());
         if (normalizedEmail.isBlank()) {
-            throw new IllegalArgumentException("email is required.");
+            throw new IllegalArgumentException("Email is required.");
         }
 
         String normalizedPhoneNumber = normalizePhoneNumber(user.getPhoneNumber());
-        Optional<User> existing = userRepository.findByEmailIgnoreCase(normalizedEmail);
-        if (!normalizedPhoneNumber.isBlank()) {
-            Optional<User> phoneOwner = userRepository.findByPhoneNumber(normalizedPhoneNumber);
-            if (phoneOwner.isPresent()
-                    && existing.map(User::getId).map(id -> !id.equals(phoneOwner.get().getId())).orElse(true)) {
-                throw new IllegalArgumentException("This mobile number is already linked to another account.");
-            }
+        if (normalizedPhoneNumber.isBlank()) {
+            throw new IllegalArgumentException("Phone number is required.");
         }
 
-        User target = existing.orElseGet(User::new);
-        target.setName(user.getName());
-        target.setEmail(normalizedEmail);
-        if (!normalizedPhoneNumber.isBlank()) {
-            target.setPhoneNumber(normalizedPhoneNumber);
-        } else if (target.getPhoneNumber() == null || target.getPhoneNumber().isBlank()) {
-            target.setPhoneNumber(null);
+        Optional<User> existingEmail = userRepository.findByEmailIgnoreCase(normalizedEmail);
+        if (existingEmail.isPresent()) {
+            throw new IllegalArgumentException("Email is already registered.");
         }
-        target.setPassword(passwordEncoder.encode(user.getPassword()));
-        target.setRole(normalizeRole(user.getRole()));
 
-        return userRepository.save(target);
+        Optional<User> existingPhone = userRepository.findByPhoneNumber(normalizedPhoneNumber);
+        if (existingPhone.isPresent()) {
+            throw new IllegalArgumentException("Phone number is already registered.");
+        }
+
+        user.setEmail(normalizedEmail);
+        user.setPhoneNumber(normalizedPhoneNumber);
+        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        user.setRole(normalizeRole(user.getRole()));
+        
+        // Driver verification logic: If role is DRIVER, they are NOT verified by default
+        if ("DRIVER".equals(user.getRole())) {
+            user.setVerified(false);
+            user.setOnline(false);
+            user.setAvailable(true);
+        } else {
+            user.setVerified(true); // Riders are verified by default for simplicity
+        }
+
+        return userRepository.save(user);
     }
 
     public Optional<User> findByEmail(String email) {

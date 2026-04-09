@@ -19,6 +19,7 @@ public class SignupOtpService {
 
     private static final int OTP_LENGTH = 6;
     private static final long CLEANUP_INTERVAL_SECONDS = 60;
+    private static final int MAX_RETRY_LIMIT = 3;
 
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, PendingOtp> pendingOtps = new ConcurrentHashMap<>();
@@ -58,7 +59,8 @@ public class SignupOtpService {
                 otp,
                 defaultName(name),
                 now.plusSeconds(Math.max(60L, otpTtlSeconds)),
-                now.plusSeconds(Math.max(0L, resendDelaySeconds))
+                now.plusSeconds(Math.max(0L, resendDelaySeconds)),
+                0
         );
         pendingOtps.put(otpTarget, nextOtp);
 
@@ -107,8 +109,22 @@ public class SignupOtpService {
             return VerificationResult.invalid("OTP expired. Request a new code.");
         }
 
+        if (pendingOtp.retryCount() >= MAX_RETRY_LIMIT) {
+            pendingOtps.remove(otpTarget, pendingOtp);
+            return VerificationResult.invalid("Too many failed attempts. Request a new OTP.");
+        }
+
         if (!Objects.equals(pendingOtp.otp(), normalizedOtp)) {
-            return VerificationResult.invalid("Invalid OTP.");
+            PendingOtp updated = new PendingOtp(
+                    pendingOtp.otp(),
+                    pendingOtp.name(),
+                    pendingOtp.expiresAt(),
+                    pendingOtp.canResendAt(),
+                    pendingOtp.retryCount() + 1
+            );
+            pendingOtps.put(otpTarget, updated);
+            int remaining = MAX_RETRY_LIMIT - updated.retryCount();
+            return VerificationResult.invalid("Invalid OTP. " + remaining + " attempts remaining.");
         }
 
         pendingOtps.remove(otpTarget, pendingOtp);
@@ -154,7 +170,7 @@ public class SignupOtpService {
         pendingOtps.entrySet().removeIf(entry -> entry.getValue().expiresAt().isBefore(now));
     }
 
-    private record PendingOtp(String otp, String name, Instant expiresAt, Instant canResendAt) {
+    private record PendingOtp(String otp, String name, Instant expiresAt, Instant canResendAt, int retryCount) {
     }
 
     private record DeliveryAttempt(boolean deliverySent, String message) {

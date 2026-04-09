@@ -12,6 +12,8 @@ import com.example.backend.entity.Ride;
 
 public interface RideRepository extends JpaRepository<Ride, Long> {
 
+    List<Ride> findByRiderIdAndStatusIn(Long riderId, Collection<Ride.Status> statuses);
+
     List<Ride> findByRiderIdOrDriverIdOrderByCreatedAtDesc(Long riderId, Long driverId);
 
     List<Ride> findByStatusNotInOrderByCreatedAtDesc(Collection<Ride.Status> statuses);

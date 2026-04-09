@@ -1,146 +1,232 @@
-import { useEffect, useRef } from "react";
-import * as THREE from "three";
+import { useEffect, useMemo, useRef } from "react";
+import gsap from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
 
-const THEME_COLORS = {
-  amber: 0xf59e0b,
-  ocean: 0x0284c7,
-  forest: 0x15803d,
-  rapido: 0xfacc15,
-  ola: 0x16a34a,
-  uber: 0x111827,
-  lyft: 0xec4899,
-};
+gsap.registerPlugin(ScrollTrigger);
 
-export default function ThreeBackdrop({ theme = "amber" }) {
-  const hostRef = useRef(null);
-  const materialRef = useRef(null);
+const LAYERS = Array.from({ length: 7 }, (_, index) => ({
+  id: `layer-${index}`,
+  size: 220 + index * 48,
+  left: 8 + ((index * 13) % 72),
+  top: 10 + ((index * 11) % 68),
+  opacity: 0.14 - index * 0.012,
+  duration: 14 + index * 2.6,
+  delay: index * 0.24,
+}));
+
+const ROUTES = [
+  "M-10,220 C180,100 320,260 540,140 S900,80 1120,210",
+  "M-20,420 C190,300 350,480 620,340 S980,220 1240,390",
+  "M140,620 C320,500 460,700 720,560 S1060,420 1320,610",
+];
+
+function prefersReducedMotion() {
+  return typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
+
+export default function ThreeBackdrop({ theme = "urban-transport" }) {
+  const rootRef = useRef(null);
+  const layerRefs = useRef([]);
+  const routeRefs = useRef([]);
+  const glowRef = useRef(null);
+  const pulseRef = useRef(null);
+  const isDarkTheme = theme.startsWith("dark-");
+  const modeClass = isDarkTheme ? "gsap-backdrop--dark" : "gsap-backdrop--light";
+  const particles = useMemo(
+    () =>
+      Array.from({ length: isDarkTheme ? 18 : 12 }, (_, index) => ({
+        id: `particle-${index}`,
+        size: 4 + (index % 5) * 2.5,
+        left: 4 + ((index * 7.5) % 92),
+        top: 6 + ((index * 9) % 82),
+        delay: index * 0.18,
+        duration: 6 + (index % 4) * 1.2,
+      })),
+    [isDarkTheme]
+  );
 
   useEffect(() => {
-    const host = hostRef.current;
-    if (!host) {
+    const root = rootRef.current;
+    if (!root) {
       return undefined;
     }
 
-    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const saveDataEnabled = navigator.connection?.saveData === true;
-    if (prefersReducedMotion || saveDataEnabled) {
+    if (prefersReducedMotion()) {
+      gsap.set(root, { opacity: 1 });
       return undefined;
     }
 
-    const lowMemoryDevice = (navigator.deviceMemory || 8) <= 4;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, host.clientWidth / host.clientHeight, 0.1, 100);
-    camera.position.z = 16;
+    const ctx = gsap.context(() => {
+      gsap.fromTo(root, { opacity: 0 }, { opacity: 1, duration: 0.9, ease: "power2.out" });
 
-    const renderer = new THREE.WebGLRenderer({
-      alpha: true,
-      antialias: !lowMemoryDevice,
-      powerPreference: lowMemoryDevice ? "default" : "high-performance",
-    });
-    renderer.setPixelRatio(lowMemoryDevice ? 1 : Math.min(window.devicePixelRatio || 1, 1.25));
-    renderer.setSize(host.clientWidth, host.clientHeight);
-    renderer.domElement.setAttribute("aria-hidden", "true");
-    host.appendChild(renderer.domElement);
-
-    const count = window.innerWidth < 768 ? (lowMemoryDevice ? 160 : 300) : (lowMemoryDevice ? 360 : 620);
-    const positions = new Float32Array(count * 3);
-    for (let index = 0; index < count; index += 1) {
-      const radius = 5 + Math.random() * 10;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      positions[index * 3] = radius * Math.sin(phi) * Math.cos(theta);
-      positions[index * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
-      positions[index * 3 + 2] = radius * Math.cos(phi);
-    }
-
-    const geometry = new THREE.BufferGeometry();
-    geometry.setAttribute("position", new THREE.BufferAttribute(positions, 3));
-
-    const material = new THREE.PointsMaterial({
-      color: THEME_COLORS.amber,
-      size: 0.08,
-      transparent: true,
-      opacity: 0.35,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    materialRef.current = material;
-
-    const points = new THREE.Points(geometry, material);
-    scene.add(points);
-
-    let rafId = null;
-    let running = true;
-    const clock = new THREE.Clock();
-    let previousFrameTime = 0;
-    const targetFrameMs = lowMemoryDevice ? 1000 / 24 : 1000 / 36;
-
-    const animate = (frameTime = 0) => {
-      if (!running) {
-        return;
-      }
-      if (frameTime - previousFrameTime < targetFrameMs) {
-        rafId = window.requestAnimationFrame(animate);
-        return;
-      }
-      previousFrameTime = frameTime;
-      const elapsed = clock.getElapsedTime();
-      points.rotation.y = elapsed * 0.05;
-      points.rotation.x = Math.sin(elapsed * 0.25) * 0.12;
-      renderer.render(scene, camera);
-      rafId = window.requestAnimationFrame(animate);
-    };
-
-    const resize = () => {
-      if (!host.isConnected) {
-        return;
-      }
-      camera.aspect = host.clientWidth / Math.max(host.clientHeight, 1);
-      camera.updateProjectionMatrix();
-      renderer.setSize(host.clientWidth, host.clientHeight);
-    };
-
-    const handleVisibility = () => {
-      if (document.hidden) {
-        running = false;
-        if (rafId) {
-          window.cancelAnimationFrame(rafId);
-          rafId = null;
+      layerRefs.current.forEach((element, index) => {
+        if (!element) {
+          return;
         }
-      } else if (!running) {
-        running = true;
-        animate();
+
+        gsap.to(element, {
+          xPercent: index % 2 === 0 ? 6 : -6,
+          yPercent: index % 3 === 0 ? -8 : 8,
+          rotation: index % 2 === 0 ? 10 : -10,
+          duration: LAYERS[index].duration,
+          delay: LAYERS[index].delay,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+      });
+
+      routeRefs.current.forEach((element, index) => {
+        if (!element) {
+          return;
+        }
+
+        const path = element.querySelector("path");
+        const pulse = element.querySelector("circle");
+        if (path) {
+          gsap.fromTo(
+            path,
+            { strokeDashoffset: 320 },
+            {
+              strokeDashoffset: 0,
+              duration: 8 + index * 1.4,
+              repeat: -1,
+              ease: "none",
+            }
+          );
+        }
+        if (pulse) {
+          gsap.to(pulse, {
+            attr: { cx: 1080 },
+            duration: 7 + index * 1.2,
+            repeat: -1,
+            ease: "power1.inOut",
+          });
+        }
+      });
+
+      if (glowRef.current) {
+        gsap.to(glowRef.current, {
+          backgroundPosition: "140% 50%",
+          duration: 16,
+          repeat: -1,
+          ease: "none",
+        });
       }
+
+      if (pulseRef.current) {
+        gsap.to(pulseRef.current, {
+          scale: 1.06,
+          opacity: isDarkTheme ? 0.42 : 0.34,
+          duration: 3.4,
+          repeat: -1,
+          yoyo: true,
+          ease: "sine.inOut",
+        });
+      }
+
+      gsap.to(root, {
+        y: isDarkTheme ? -24 : -16,
+        scrollTrigger: {
+          trigger: document.body,
+          start: "top top",
+          end: "bottom bottom",
+          scrub: 1.2,
+        },
+      });
+    }, root);
+
+    const handlePointerMove = (event) => {
+      const x = (event.clientX / window.innerWidth - 0.5) * 28;
+      const y = (event.clientY / window.innerHeight - 0.5) * 18;
+
+      gsap.to(layerRefs.current.filter(Boolean), {
+        x,
+        y,
+        duration: 1.6,
+        ease: "power3.out",
+        stagger: 0.02,
+        overwrite: true,
+      });
+
+      gsap.to(routeRefs.current.filter(Boolean), {
+        x: x * 0.4,
+        y: y * 0.5,
+        duration: 1.4,
+        ease: "power3.out",
+        overwrite: true,
+      });
     };
 
-    animate();
-    window.addEventListener("resize", resize);
-    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("pointermove", handlePointerMove, { passive: true });
 
     return () => {
-      running = false;
-      if (rafId) {
-        window.cancelAnimationFrame(rafId);
-      }
-      document.removeEventListener("visibilitychange", handleVisibility);
-      window.removeEventListener("resize", resize);
-      scene.remove(points);
-      geometry.dispose();
-      material.dispose();
-      materialRef.current = null;
-      renderer.dispose();
-      if (renderer.domElement.parentElement === host) {
-        host.removeChild(renderer.domElement);
-      }
+      window.removeEventListener("pointermove", handlePointerMove);
+      ctx.revert();
+      ScrollTrigger.getAll().forEach((trigger) => trigger.kill());
     };
-  }, []);
+  }, [isDarkTheme]);
 
-  useEffect(() => {
-    if (!materialRef.current) {
-      return;
-    }
-    materialRef.current.color.setHex(THEME_COLORS[theme] || THEME_COLORS.amber);
-  }, [theme]);
-
-  return <div className="three-backdrop" ref={hostRef} />;
+  return (
+    <div
+      ref={rootRef}
+      aria-hidden="true"
+      className={`three-backdrop gsap-backdrop ${modeClass}`}
+    >
+      <div className="gsap-backdrop__base" />
+      <div ref={glowRef} className="gsap-backdrop__gradient-line" />
+      <div ref={pulseRef} className="gsap-backdrop__pulse" />
+      <div className="gsap-backdrop__grid" />
+      <div className="gsap-backdrop__routes">
+        {ROUTES.map((route, index) => (
+          <svg
+            key={route}
+            ref={(node) => {
+              routeRefs.current[index] = node;
+            }}
+            className="gsap-backdrop__route"
+            viewBox="0 0 1320 720"
+            preserveAspectRatio="none"
+          >
+            <path d={route} pathLength="320" />
+            <circle cy={index === 1 ? 390 : index === 2 ? 610 : 210} r="5.5" />
+          </svg>
+        ))}
+      </div>
+      <div className="gsap-backdrop__layers">
+        {LAYERS.map((layer, index) => (
+          <span
+            key={layer.id}
+            ref={(node) => {
+              layerRefs.current[index] = node;
+            }}
+            className="gsap-backdrop__layer"
+            style={{
+              width: `${layer.size}px`,
+              height: `${layer.size}px`,
+              left: `${layer.left}%`,
+              top: `${layer.top}%`,
+              opacity: layer.opacity,
+            }}
+          />
+        ))}
+      </div>
+      <div className="gsap-backdrop__particles">
+        {particles.map((particle) => (
+          <span
+            key={particle.id}
+            className="gsap-backdrop__particle"
+            style={{
+              width: `${particle.size}px`,
+              height: `${particle.size}px`,
+              left: `${particle.left}%`,
+              top: `${particle.top}%`,
+              animationDelay: `${particle.delay}s`,
+              animationDuration: `${particle.duration}s`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
 }

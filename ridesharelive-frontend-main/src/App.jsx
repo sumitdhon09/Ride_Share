@@ -4,6 +4,7 @@ import heroImage from "./assets/1.png";
 import safetyImage from "./assets/2.png";
 import Login from "./Login";
 import Signup from "./Signup";
+import Header from "./components/Header";
 import LiveMapPanel from "./components/LiveMapPanel";
 import { apiRequest } from "./api";
 
@@ -39,7 +40,15 @@ const DEFAULT_PREFERENCES = {
   language: "en",
   fontScale: 90,
 };
-const AVAILABLE_THEMES = ["urban-transport", "dark-theme"];
+const AVAILABLE_THEMES = [
+  "urban-transport",
+  "eco-friendly-ride",
+  "premium-ride",
+  "neon-tech",
+  "dark-theme",
+  "dark-ember",
+  "dark-graphite",
+];
 const DEFAULT_ADVANCED_SETTINGS = {
   tripSharingDefault: true,
   hidePhoneNumber: false,
@@ -59,6 +68,15 @@ const VEHICLE_RATES = {
   bike: 12,
   mini: 18,
   sedan: 26,
+};
+const ESTIMATOR_BASE_FARE_INR = 60;
+const ESTIMATOR_FARE_STEP_KM = 40;
+const ESTIMATOR_FARE_STEP_INR = 50;
+const ESTIMATOR_PLATFORM_SURCHARGE_INR = 50;
+const ESTIMATOR_VEHICLE_SURCHARGES = {
+  bike: 0,
+  mini: 0,
+  sedan: 150,
 };
 const USER_SETTINGS_PREFIXES = ["/user-settings", "/api/user-settings"];
 const FALLBACK_TRANSLATION_LANGUAGE_OPTIONS = [
@@ -191,6 +209,32 @@ function useRevealItems(rootRef, depsKey = "") {
   }, [depsKey, rootRef]);
 }
 
+function haversineKm(from, to) {
+  const toRadians = (value) => (value * Math.PI) / 180;
+  const earthRadiusKm = 6371;
+  const latDelta = toRadians(to.lat - from.lat);
+  const lonDelta = toRadians(to.lon - from.lon);
+  const fromLat = toRadians(from.lat);
+  const toLat = toRadians(to.lat);
+  const a =
+    Math.sin(latDelta / 2) ** 2 +
+    Math.cos(fromLat) * Math.cos(toLat) * Math.sin(lonDelta / 2) ** 2;
+  return earthRadiusKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function buildEstimatorFare(distanceKm, vehicle) {
+  const safeDistance = Math.max(0, Number(distanceKm) || 0);
+  const slabs = Math.floor(safeDistance / ESTIMATOR_FARE_STEP_KM);
+  const surcharge = ESTIMATOR_VEHICLE_SURCHARGES[vehicle] ?? ESTIMATOR_VEHICLE_SURCHARGES.mini;
+  return ESTIMATOR_BASE_FARE_INR + slabs * ESTIMATOR_FARE_STEP_INR + ESTIMATOR_PLATFORM_SURCHARGE_INR + surcharge;
+}
+
+function buildEstimatorEtaText(distanceKm, vehicle) {
+  const speedKmH = vehicle === "bike" ? 32 : vehicle === "sedan" ? 24 : 28;
+  const etaMin = Math.max(6, Math.round((Math.max(0, Number(distanceKm) || 0) / speedKmH) * 60) + 4);
+  return `${etaMin}-${etaMin + 5} min`;
+}
+
 const TRANSLATIONS = {
   en: {
     header: {
@@ -207,14 +251,27 @@ const TRANSLATIONS = {
     settings: {
       title: "Settings Bar",
       theme: "Theme",
+      palette: "Color palette",
       language: "Language",
       fontSize: "Font size",
       decrease: "A-",
       increase: "A+",
       reset: "Reset",
+      navigationSection: "Map & Navigation",
+      mapStyle: "Map style",
+      avoidTolls: "Avoid tolls",
+      avoidHighways: "Avoid highways",
+      ridePreferences: "Ride Preferences",
+      preferredVehicle: "Preferred vehicle",
+      acPreference: "AC preference",
+      quietRide: "Quiet ride",
       themeOptions: {
+        "dark-graphite": "Graphite Dark",
+        "dark-ember": "Ember Dark",
         "eco-friendly-ride": "Eco-Friendly Ride Theme",
-        "dark-theme": "Dark Theme",
+        "dark-theme": "Midnight Dark",
+        "neon-tech": "Neon Tech Theme",
+        "premium-ride": "Premium Ride Theme",
         "urban-transport": "Urban Transport Theme",
       },
       languageOptions: {
@@ -283,7 +340,7 @@ const TRANSLATIONS = {
       appDemoSafetyBody: "Track the route and key ride status updates in real time.",
       highlights: [
         { label: "Average pickup", value: "6 min" },
-        { label: "Coverage", value: "100+ zones" },
+        { label: "Zones covered", value: "100+" },
         { label: "Completed rides", value: "1M+" },
       ],
       steps: [
@@ -336,14 +393,27 @@ const TRANSLATIONS = {
     settings: {
       title: "सेटिंग्स बार",
       theme: "थीम",
+      palette: "कलर पैलेट",
       language: "भाषा",
       fontSize: "फ़ॉन्ट साइज़",
       decrease: "A-",
       increase: "A+",
       reset: "रीसेट",
+      navigationSection: "मैप और नेविगेशन",
+      mapStyle: "मैप स्टाइल",
+      avoidTolls: "टोल्स से बचें",
+      avoidHighways: "हाईवे से बचें",
+      ridePreferences: "राइड प्रेफरेंसेस",
+      preferredVehicle: "पसंदीदा वाहन",
+      acPreference: "एसी प्रेफरेंस",
+      quietRide: "शांत राइड",
       themeOptions: {
+        "dark-graphite": "ग्रेफाइट डार्क",
+        "dark-ember": "एम्बर डार्क",
         "eco-friendly-ride": "Eco-Friendly Ride Theme",
-        "dark-theme": "Dark Theme",
+        "dark-theme": "मिडनाइट डार्क",
+        "neon-tech": "Neon Tech Theme",
+        "premium-ride": "Premium Ride Theme",
         "urban-transport": "Urban Transport Theme",
       },
       languageOptions: {
@@ -507,24 +577,55 @@ function clearSessionStorage() {
 function HomeLanding({ onOpenAuth, copy }) {
   const [pickup, setPickup] = useState("");
   const [drop, setDrop] = useState("");
-  const [distanceKm, setDistanceKm] = useState("8");
+  const [distanceKm, setDistanceKm] = useState(null);
   const [vehicle, setVehicle] = useState("mini");
   const [estimateLoading, setEstimateLoading] = useState(false);
+  const geocodeCacheRef = useRef(new Map());
+
+  const geocodePlace = useCallback(async (place, signal) => {
+    const key = place.trim().toLowerCase();
+    if (!key) {
+      return null;
+    }
+
+    if (geocodeCacheRef.current.has(key)) {
+      return geocodeCacheRef.current.get(key);
+    }
+
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=in&q=${encodeURIComponent(place)}`,
+      { signal }
+    );
+    const data = await response.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      geocodeCacheRef.current.set(key, null);
+      return null;
+    }
+
+    const mapped = {
+      lat: Number(data[0].lat),
+      lon: Number(data[0].lon),
+    };
+    geocodeCacheRef.current.set(key, mapped);
+    return mapped;
+  }, []);
 
   const fallbackEstimate = useMemo(() => {
-    const parsedDistance = Number(distanceKm);
-    const normalizedDistance =
-      Number.isFinite(parsedDistance) && parsedDistance > 0 ? parsedDistance : 1;
-    const perKmRate = VEHICLE_RATES[vehicle] || VEHICLE_RATES.mini;
-    const baseFare = 35;
-    const surgeMultiplier = normalizedDistance > 15 ? 1.12 : 1;
-    const estimatedFare = Math.round((baseFare + normalizedDistance * perKmRate) * surgeMultiplier);
-    const etaMultiplier = vehicle === "bike" ? 1.1 : vehicle === "sedan" ? 1.45 : 1.3;
-    const etaMinutes = Math.round(4 + normalizedDistance * etaMultiplier);
+    const normalizedDistance = Number.isFinite(distanceKm) && distanceKm > 0 ? distanceKm : 0;
+    if (normalizedDistance <= 0) {
+      return {
+        distance: "--",
+        etaText: "--",
+        fareLow: 0,
+        fareHigh: 0,
+      };
+    }
+    const estimatedFare = Math.round(buildEstimatorFare(normalizedDistance, vehicle));
+    const etaText = buildEstimatorEtaText(normalizedDistance, vehicle);
 
     return {
       distance: normalizedDistance.toFixed(1),
-      etaText: `${etaMinutes}-${etaMinutes + 5} min`,
+      etaText,
       fareLow: Math.max(estimatedFare - 20, 49),
       fareHigh: estimatedFare + 35,
     };
@@ -537,9 +638,13 @@ function HomeLanding({ onOpenAuth, copy }) {
 
   useEffect(() => {
     let cancelled = false;
-    const parsedDistance = Number(distanceKm);
-    if (!Number.isFinite(parsedDistance) || parsedDistance <= 0) {
+    const controller = new AbortController();
+    const pickupValue = pickup.trim();
+    const dropValue = drop.trim();
+
+    if (!pickupValue || !dropValue) {
       setEstimateLoading(false);
+      setDistanceKm(null);
       setEstimatedTrip(fallbackEstimate);
       return undefined;
     }
@@ -547,8 +652,26 @@ function HomeLanding({ onOpenAuth, copy }) {
     const timer = setTimeout(async () => {
       setEstimateLoading(true);
       try {
+        const [pickupCoordinate, dropCoordinate] = await Promise.all([
+          geocodePlace(pickupValue, controller.signal),
+          geocodePlace(dropValue, controller.signal),
+        ]);
+
+        if (!pickupCoordinate || !dropCoordinate) {
+          if (!cancelled) {
+            setDistanceKm(null);
+            setEstimatedTrip(fallbackEstimate);
+          }
+          return;
+        }
+
+        const calculatedDistance = Math.max(1, haversineKm(pickupCoordinate, dropCoordinate));
+        if (!cancelled) {
+          setDistanceKm(calculatedDistance);
+        }
+
         const estimate = await apiRequest(
-          `/rides/estimate?distanceKm=${encodeURIComponent(parsedDistance.toFixed(2))}&rideType=${encodeURIComponent(vehicle)}`
+          `/rides/estimate?distanceKm=${encodeURIComponent(calculatedDistance.toFixed(2))}&rideType=${encodeURIComponent(vehicle)}`
         );
         const fareMin = Number(estimate?.fareMin);
         const fareMax = Number(estimate?.fareMax);
@@ -562,12 +685,15 @@ function HomeLanding({ onOpenAuth, copy }) {
           Number.isFinite(etaMin) &&
           Number.isFinite(etaMax)
         ) {
+          const fallbackFare = buildEstimatorFare(calculatedDistance, vehicle);
+          const apiMidFare = (fareMin + fareMax) / 2;
+          const looksReasonable = apiMidFare <= fallbackFare * 2.5 && apiMidFare >= Math.max(49, fallbackFare * 0.5);
           if (!cancelled) {
             setEstimatedTrip({
-              distance: (Number.isFinite(apiDistance) ? apiDistance : parsedDistance).toFixed(1),
-              etaText: `${etaMin}-${etaMax} min`,
-              fareLow: Math.round(fareMin),
-              fareHigh: Math.round(fareMax),
+              distance: (Number.isFinite(apiDistance) ? apiDistance : calculatedDistance).toFixed(1),
+              etaText: looksReasonable ? `${etaMin}-${etaMax} min` : buildEstimatorEtaText(calculatedDistance, vehicle),
+              fareLow: looksReasonable ? Math.round(fareMin) : Math.max(Math.round(fallbackFare) - 20, 49),
+              fareHigh: looksReasonable ? Math.round(fareMax) : Math.round(fallbackFare) + 35,
             });
           }
           return;
@@ -587,9 +713,10 @@ function HomeLanding({ onOpenAuth, copy }) {
 
     return () => {
       cancelled = true;
+      controller.abort();
       clearTimeout(timer);
     };
-  }, [distanceKm, fallbackEstimate, vehicle]);
+  }, [drop, fallbackEstimate, geocodePlace, pickup, vehicle]);
 
   const text = {
     heroBookRideCta: copy.heroBookRideCta || "Book a Ride",
@@ -650,72 +777,118 @@ function HomeLanding({ onOpenAuth, copy }) {
   ];
 
   return (
-    <section className="space-y-8">
-      <div className="landing-stage landing-stage--wide" data-reveal>
-        <p className="eyebrow-chip">{copy.badge}</p>
-        <div className="hero-billboard mt-7" data-reveal>
-          <div className="hero-billboard__frame">
-            <div className="hero-billboard__meta">
-              <span className="hero-billboard__meta-chip">Urban mobility</span>
-              <span className="hero-billboard__meta-line" />
+    <section className="space-y-6 lg:space-y-7">
+      <div id="header-home" className="landing-stage landing-stage--wide" data-reveal>
+        <div className="landing-stage__grid">
+          <div className="landing-stage__content">
+            <p className="eyebrow-chip">{copy.badge}</p>
+
+            <div className="hero-editorial hero-editorial--compact mt-7" data-reveal>
+              <h1 className="hero-editorial__title">
+                <span>{copy.heroTitleA}</span>
+                <span className="hero-editorial__accent">{copy.heroTitleB}</span>
+              </h1>
+              <p className="hero-editorial__body">{copy.heroBody}</p>
             </div>
-            <div className="hero-billboard__brand">
-              <span className="hero-billboard__icon" aria-hidden="true">
-                <span className="hero-billboard__icon-dot hero-billboard__icon-dot--start" />
-                <span className="hero-billboard__icon-path" />
-                <span className="hero-billboard__icon-dot hero-billboard__icon-dot--end" />
-              </span>
-              <div>
-                <p className="hero-billboard__word">RIDESHARE</p>
-                <p className="hero-billboard__tagline">click. ride. arrive.</p>
+
+            <div className="hero-actions mt-8" data-reveal>
+              <button className="btn-primary" onClick={() => onOpenAuth("signup", "RIDER")}>
+                {text.heroBookRideCta}
+              </button>
+              <button className="btn-secondary" onClick={() => onOpenAuth("signup", "DRIVER")}>
+                {text.heroDriveEarnCta}
+              </button>
+            </div>
+
+            <div className="hero-quick-links mt-4" data-reveal>
+              <button className="hero-quick-links__action" onClick={() => onOpenAuth("login")}>
+                {text.heroLoginCta}
+              </button>
+              <span className="hero-quick-links__divider" />
+              <button className="hero-quick-links__action" onClick={() => onOpenAuth("signup")}>
+                {text.heroSignupCta}
+              </button>
+            </div>
+
+            <div className="hero-mini-stats mt-8" data-reveal>
+              <article className="hero-mini-stats__card">
+                <span>Avg response</span>
+                <strong>10 sec</strong>
+              </article>
+              <article className="hero-mini-stats__card">
+                <span>Mode switch</span>
+                <strong>Rider + Driver</strong>
+              </article>
+              <article className="hero-mini-stats__card">
+                <span>Live clarity</span>
+                <strong>ETA + fare + route</strong>
+              </article>
+            </div>
+          </div>
+
+          <div className="landing-stage__visual">
+            <div className="hero-billboard" data-reveal>
+              <div className="hero-billboard__frame">
+                <div className="hero-billboard__meta">
+                  <span className="hero-billboard__meta-chip">Urban mobility</span>
+                  <span className="hero-billboard__meta-line" />
+                </div>
+                <div className="hero-billboard__brand">
+                  <span className="hero-billboard__icon" aria-hidden="true">
+                    <span className="hero-billboard__icon-dot hero-billboard__icon-dot--start" />
+                    <span className="hero-billboard__icon-path" />
+                    <span className="hero-billboard__icon-dot hero-billboard__icon-dot--end" />
+                  </span>
+                  <div>
+                    <p className="hero-billboard__word">
+                      <span>RIDE</span>
+                      <span>SHARE</span>
+                    </p>
+                    <p className="hero-billboard__tagline">click. ride. arrive.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="hero-presence-card" data-reveal>
+              <div className="hero-presence-card__media">
+                <img
+                  src={safetyImage}
+                  alt="RideShare driver and rider visual"
+                  className="hero-presence-card__image"
+                  decoding="async"
+                />
+              </div>
+              <div className="hero-presence-card__body">
+                <p className="hero-presence-card__eyebrow">Frontend focus</p>
+                <h2 className="hero-presence-card__title">Cleaner visual hierarchy across booking, tracking, and sign-in</h2>
+                <p className="hero-presence-card__copy">
+                  Large cards, tighter spacing, and stronger route emphasis make the interface easier to scan on first load.
+                </p>
               </div>
             </div>
           </div>
         </div>
-
-        <div className="hero-editorial mt-10" data-reveal>
-          <h1 className="hero-editorial__title">
-            <span>{copy.heroTitleA}</span>
-            <span className="hero-editorial__accent">{copy.heroTitleB}</span>
-          </h1>
-          <p className="hero-editorial__body">{copy.heroBody}</p>
-        </div>
-
-        <div className="mt-8 flex flex-wrap gap-3" data-reveal>
-          <button className="btn-primary" onClick={() => onOpenAuth("signup", "RIDER")}>
-            {text.heroBookRideCta}
-          </button>
-          <button className="btn-secondary" onClick={() => onOpenAuth("signup", "DRIVER")}>
-            {text.heroDriveEarnCta}
-          </button>
-        </div>
-
-        <div className="mt-4 flex flex-wrap items-center gap-3 text-sm" data-reveal>
-          <button className="font-semibold text-slate-700 underline underline-offset-2" onClick={() => onOpenAuth("login")}>
-            {text.heroLoginCta}
-          </button>
-          <span className="text-slate-400">|</span>
-          <button className="font-semibold text-slate-700 underline underline-offset-2" onClick={() => onOpenAuth("signup")}>
-            {text.heroSignupCta}
-          </button>
-        </div>
       </div>
 
-      <div className="landing-lower-grid">
-        <div className="glass-panel card-rise landing-preview p-5 sm:p-6" data-reveal>
-          <div className="landing-preview__frame">
-            <img
-              src={heroImage}
-              alt="Ride matching preview"
-              className="h-72 w-full rounded-[1.6rem] object-cover sm:h-80"
-              decoding="async"
-            />
-            <div className="landing-preview__overlay">
-              <p className="landing-preview__kicker">{text.appDemoEyebrow}</p>
-              <h2 className="landing-preview__title">{text.appDemoTitle}</h2>
-              <p className="landing-preview__body">{text.appDemoBody}</p>
-            </div>
-          </div>
+      <div id="header-rides" className="landing-lower-grid">
+        <div data-reveal>
+          <LiveMapPanel
+            title={copy.mapTitle}
+            className="landing-map-panel landing-map-panel--hero"
+            defaultCenter={{ lat: 21.774, lon: 78.257 }}
+            defaultZoom={6}
+            defaultLocationLabel="Multai, India"
+            labels={{
+              searchPlaceholder: copy.mapSearchPlaceholder,
+              useMyLocation: copy.mapUseMyLocation,
+              recenter: copy.mapRecenter,
+              locateFailed: copy.mapLocateFailed,
+              searchFailed: copy.mapSearchFailed,
+              indiaOnly: copy.mapIndiaOnly,
+              yourLocation: copy.mapYourLocation,
+            }}
+          />
         </div>
 
         <div className="route-sculpture route-sculpture--lower" data-reveal>
@@ -751,12 +924,12 @@ function HomeLanding({ onOpenAuth, copy }) {
         </div>
       </div>
 
-      <div className="glass-panel card-rise signal-radar p-6 sm:p-8" data-reveal>
+      <div className="glass-panel card-rise signal-radar p-5 sm:p-7" data-reveal>
         <div className="grid gap-6 lg:grid-cols-[0.9fr,1.1fr] lg:items-start">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Hero signals</p>
-            <h3 className="mt-3 text-2xl font-bold text-slate-900">Fast readouts for riders and drivers</h3>
-            <p className="mt-2 text-sm text-slate-600">
+          <div className="section-copy">
+            <p className="section-copy__eyebrow">Hero signals</p>
+            <h3 className="section-copy__title">Fast readouts for riders and drivers</h3>
+            <p className="section-copy__body">
               The interface now behaves like an operations board: route state, cost window, and vehicle mode are visible at a glance.
             </p>
           </div>
@@ -774,7 +947,7 @@ function HomeLanding({ onOpenAuth, copy }) {
             ))}
           </div>
         </div>
-        <div className="mt-6 grid gap-4">
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
           {steps.map((step, index) => (
             <article key={step.title} className="signal-step" data-reveal>
               <div className="signal-step__index">0{index + 1}</div>
@@ -790,50 +963,51 @@ function HomeLanding({ onOpenAuth, copy }) {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-[1.2fr,0.8fr]">
-        <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{text.quickEstimatorEyebrow}</p>
-          <h3 className="mt-3 text-2xl font-bold text-slate-900">{text.quickEstimatorTitle}</h3>
-          <p className="mt-2 text-sm text-slate-600 sm:text-base">{text.quickEstimatorBody}</p>
+      <div id="header-pricing" className="grid gap-6 lg:grid-cols-[1.2fr,0.8fr]">
+        <div className="glass-panel card-rise estimator-panel p-5 sm:p-7" data-reveal>
+          <div className="section-copy">
+            <p className="section-copy__eyebrow">{text.quickEstimatorEyebrow}</p>
+            <h3 className="section-copy__title">{text.quickEstimatorTitle}</h3>
+            <p className="section-copy__body estimator-panel__intro">{text.quickEstimatorBody}</p>
+          </div>
 
-          <div className="mt-6 grid gap-4 sm:grid-cols-2">
-            <label className="text-sm font-semibold text-slate-700">
+          <div className="estimator-panel__form mt-6 grid gap-4 sm:grid-cols-2">
+            <label className="estimator-field text-sm font-semibold text-slate-700">
               {text.quickEstimatorPickupLabel}
               <input
                 type="text"
                 value={pickup}
                 onChange={(event) => setPickup(event.target.value)}
                 placeholder={text.quickEstimatorPickupPlaceholder}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="estimator-field__control mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </label>
-            <label className="text-sm font-semibold text-slate-700">
+            <label className="estimator-field text-sm font-semibold text-slate-700">
               {text.quickEstimatorDropLabel}
               <input
                 type="text"
                 value={drop}
                 onChange={(event) => setDrop(event.target.value)}
                 placeholder={text.quickEstimatorDropPlaceholder}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="estimator-field__control mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </label>
-            <label className="text-sm font-semibold text-slate-700">
+            <label className="estimator-field text-sm font-semibold text-slate-700">
               {text.quickEstimatorDistanceLabel}
               <input
-                type="number"
-                min="1"
-                step="0.5"
-                value={distanceKm}
-                onChange={(event) => setDistanceKm(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                type="text"
+                value={Number.isFinite(distanceKm) ? distanceKm.toFixed(1) : ""}
+                readOnly
+                placeholder="Auto calculated"
+                className="estimator-field__control mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               />
             </label>
-            <label className="text-sm font-semibold text-slate-700">
+            <label className="estimator-field text-sm font-semibold text-slate-700">
               {text.quickEstimatorVehicleLabel}
               <select
                 value={vehicle}
                 onChange={(event) => setVehicle(event.target.value)}
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
+                className="estimator-field__control mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900 outline-none transition focus:border-amber-400 focus:ring-2 focus:ring-amber-100"
               >
                 <option value="bike">{text.quickEstimatorBike}</option>
                 <option value="mini">{text.quickEstimatorMini}</option>
@@ -842,23 +1016,23 @@ function HomeLanding({ onOpenAuth, copy }) {
             </label>
           </div>
 
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white/85 p-4">
-            <p className="text-sm text-slate-500">
+          <div className="estimator-output mt-6 rounded-2xl border border-slate-200 bg-white/85 p-4">
+            <p className="estimator-output__route text-sm text-slate-500">
               {(pickup.trim() && drop.trim()
                 ? `${pickup.trim()} to ${drop.trim()}`
                 : "Route preview")} | {estimatedTrip.distance} km
             </p>
             {estimateLoading && (
-              <p className="mt-2 text-xs font-semibold text-slate-500">Syncing estimate from server...</p>
+              <p className="estimator-output__sync mt-2 text-xs font-semibold text-slate-500">Syncing estimate from server...</p>
             )}
-            <div className="mt-3 grid gap-4 sm:grid-cols-2">
-              <div>
+            <div className="estimator-output__grid mt-3 grid gap-4 sm:grid-cols-2">
+              <div className="estimator-output__metric">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {text.quickEstimatorEtaLabel}
                 </p>
                 <p className="mt-1 text-2xl font-bold text-slate-900">{estimatedTrip.etaText}</p>
               </div>
-              <div>
+              <div className="estimator-output__metric">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
                   {text.quickEstimatorFareLabel}
                 </p>
@@ -870,30 +1044,32 @@ function HomeLanding({ onOpenAuth, copy }) {
             <button className="btn-primary mt-5" onClick={() => onOpenAuth("signup", "RIDER")}>
               {text.quickEstimatorBookCta}
             </button>
-            <p className="mt-3 text-xs text-slate-500">{text.quickEstimatorHint}</p>
+            <p className="estimator-output__hint mt-3 text-xs text-slate-500">{text.quickEstimatorHint}</p>
           </div>
         </div>
 
-        <div className="glass-panel card-rise signal-radar p-6 sm:p-8" data-reveal>
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">{text.appDemoEyebrow}</p>
-          <h3 className="mt-3 text-2xl font-bold text-slate-900">Trip signal board</h3>
-          <p className="mt-2 text-sm text-slate-600">
+        <div className="glass-panel card-rise signal-radar p-5 sm:p-7" data-reveal>
+          <div className="section-copy">
+            <p className="section-copy__eyebrow">{text.appDemoEyebrow}</p>
+            <h3 className="section-copy__title">Trip signal board</h3>
+            <p className="section-copy__body">
             A brighter pre-booking surface for riders and drivers: route confidence, match progress, and ETA in one frame.
-          </p>
-          <div className="mt-6 space-y-3">
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+            </p>
+          </div>
+          <div className="progress-stack mt-6 space-y-3">
+            <div className="progress-stack__item rounded-xl border border-slate-200 bg-white/80 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">1. Route selected</p>
               <div className="mt-2 h-2 rounded-full bg-slate-100">
                 <div className="shine-line h-full w-4/5 rounded-full bg-amber-500" />
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+            <div className="progress-stack__item rounded-xl border border-slate-200 bg-white/80 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">2. Driver matched</p>
               <div className="mt-2 h-2 rounded-full bg-slate-100">
                 <div className="shine-line h-full w-3/5 rounded-full bg-emerald-500" />
               </div>
             </div>
-            <div className="rounded-xl border border-slate-200 bg-white/80 p-3">
+            <div className="progress-stack__item rounded-xl border border-slate-200 bg-white/80 p-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">3. Ride in progress</p>
               <div className="mt-2 h-2 rounded-full bg-slate-100">
                 <div className="shine-line h-full w-2/5 rounded-full bg-sky-500" />
@@ -921,9 +1097,16 @@ function HomeLanding({ onOpenAuth, copy }) {
         </div>
       </div>
 
-      <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
+      <div className="glass-panel card-rise showcase-panel p-5 sm:p-7" data-reveal>
+        <div className="section-copy section-copy--centered">
+          <p className="section-copy__eyebrow">Feature walkthrough</p>
+          <h3 className="section-copy__title">Designed to look clear before the first login</h3>
+          <p className="section-copy__body">
+            The landing experience now previews booking confidence, live updates, and safety context without forcing users into the app too early.
+          </p>
+        </div>
         <div className="grid gap-6 lg:grid-cols-2">
-          <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+          <article className="showcase-panel__card overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
             <img
               src={heroImage}
               alt="Booking and matching screenshot"
@@ -936,7 +1119,7 @@ function HomeLanding({ onOpenAuth, copy }) {
               <p className="mt-2 text-sm text-slate-600">{text.appDemoRideBody}</p>
             </div>
           </article>
-          <article className="overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
+          <article className="showcase-panel__card overflow-hidden rounded-2xl border border-slate-200 bg-white/80">
             <img
               src={safetyImage}
               alt="Live tracking and safety screenshot"
@@ -952,8 +1135,8 @@ function HomeLanding({ onOpenAuth, copy }) {
         </div>
       </div>
 
-      <div className="grid gap-8 lg:grid-cols-1">
-        <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
+      <div className="grid gap-6 lg:grid-cols-1">
+        <div className="glass-panel card-rise p-5 sm:p-7" data-reveal>
           <h3 className="text-xl font-bold text-slate-900">{copy.rolesTitle}</h3>
           <div className="mt-5 space-y-4">
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
@@ -967,24 +1150,6 @@ function HomeLanding({ onOpenAuth, copy }) {
           </div>
         </div>
       </div>
-
-      <div data-reveal>
-        <LiveMapPanel
-          title={copy.mapTitle}
-          defaultCenter={{ lat: 21.774, lon: 78.257 }}
-          defaultZoom={6}
-          defaultLocationLabel="Multai, India"
-          labels={{
-            searchPlaceholder: copy.mapSearchPlaceholder,
-            useMyLocation: copy.mapUseMyLocation,
-            recenter: copy.mapRecenter,
-            locateFailed: copy.mapLocateFailed,
-            searchFailed: copy.mapSearchFailed,
-            indiaOnly: copy.mapIndiaOnly,
-            yourLocation: copy.mapYourLocation,
-          }}
-        />
-      </div>
     </section>
   );
 }
@@ -995,6 +1160,7 @@ export default function App() {
   const locomotiveRef = useRef(null);
   const hasLoadedRemoteSettingsRef = useRef(false);
   const headerMenuRef = useRef(null);
+  const settingsPanelRef = useRef(null);
   const [session, setSession] = useState(getStoredSession);
   const [activePage, setActivePage] = useState(() => getDefaultPageForRole(getStoredSession().role));
   const [authMode, setAuthMode] = useState("login");
@@ -1186,7 +1352,7 @@ export default function App() {
     }
 
     const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (preferences.theme !== "dark-theme" || reduceMotion) {
+    if (!preferences.theme.startsWith("dark-") || reduceMotion) {
       host.style.removeProperty("--spot-x");
       host.style.removeProperty("--spot-y");
       return undefined;
@@ -1297,20 +1463,20 @@ export default function App() {
   }, [currentPage, showAuth, showSettings, preferences.fontScale, preferences.language, session.token]);
 
   useEffect(() => {
-    if (!showHeaderMenu) {
+    if (!showSettings) {
       return undefined;
     }
 
     const handlePointerDown = (event) => {
-      if (headerMenuRef.current?.contains(event.target)) {
+      if (settingsPanelRef.current?.contains(event.target)) {
         return;
       }
-      setShowHeaderMenu(false);
+      setShowSettings(false);
     };
 
     const handleEscape = (event) => {
       if (event.key === "Escape") {
-        setShowHeaderMenu(false);
+        setShowSettings(false);
       }
     };
 
@@ -1321,13 +1487,7 @@ export default function App() {
       document.removeEventListener("pointerdown", handlePointerDown);
       document.removeEventListener("keydown", handleEscape);
     };
-  }, [showHeaderMenu]);
-
-  useEffect(() => {
-    if (showAuth || showSettings) {
-      setShowHeaderMenu(false);
-    }
-  }, [showAuth, showSettings]);
+  }, [showSettings]);
 
   useEffect(() => {
     const handleSessionExpired = () => {
@@ -1337,7 +1497,6 @@ export default function App() {
       setAuthMode("login");
       setShowAuth(true);
       setShowSettings(false);
-      setShowHeaderMenu(false);
       setUserSettingsPrefix("");
       hasLoadedRemoteSettingsRef.current = false;
     };
@@ -1350,7 +1509,6 @@ export default function App() {
     setPreferredRole(role === "DRIVER" ? "DRIVER" : "RIDER");
     setAuthMode(mode);
     setShowAuth(true);
-    setShowHeaderMenu(false);
   };
 
   const closeAuthModal = () => {
@@ -1384,15 +1542,38 @@ export default function App() {
     hasLoadedRemoteSettingsRef.current = false;
     setShowAuth(false);
     setShowSettings(false);
-    setShowHeaderMenu(false);
   };
 
   const handleBrandClick = () => {
     setActivePage("home");
     setShowAuth(false);
     setShowSettings(false);
-    setShowHeaderMenu(false);
   };
+
+  const scrollToHomeSection = useCallback(
+    (sectionId) => {
+      const performScroll = () => {
+        const target = document.getElementById(sectionId);
+        if (target) {
+          target.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      };
+
+      setShowSettings(false);
+      setShowAuth(false);
+
+      if (currentPage !== "home") {
+        setActivePage("home");
+        requestAnimationFrame(() => {
+          requestAnimationFrame(performScroll);
+        });
+        return;
+      }
+
+      performScroll();
+    },
+    [currentPage]
+  );
 
   const changeLanguage = (event) => {
     setPreferences((previous) => ({
@@ -1404,7 +1585,18 @@ export default function App() {
   const toggleDarkTheme = () => {
     setPreferences((previous) => ({
       ...previous,
-      theme: previous.theme === "dark-theme" ? "urban-transport" : "dark-theme",
+      theme: previous.theme.startsWith("dark-") ? "urban-transport" : "dark-theme",
+    }));
+  };
+
+  const changeTheme = (event) => {
+    const nextTheme = event.target.value;
+    if (!AVAILABLE_THEMES.includes(nextTheme)) {
+      return;
+    }
+    setPreferences((previous) => ({
+      ...previous,
+      theme: nextTheme,
     }));
   };
 
@@ -1415,7 +1607,79 @@ export default function App() {
     }));
   };
 
-  const isDarkTheme = preferences.theme === "dark-theme";
+  const isDarkTheme = preferences.theme.startsWith("dark-");
+  const renderHeaderMenuContent = useCallback(
+    ({ closeMenu, language, languageOptions, onChangeLanguage }) => (
+      <>
+        {session.token ? (
+          <div className="header-menu__identity">
+            <p className="header-menu__eyebrow">Signed in as</p>
+            <p className="header-menu__user">{session.name || session.role || dictionary.header.user}</p>
+          </div>
+        ) : null}
+
+        <label className="header-menu__field">
+          <span className="header-menu__label">{dictionary.settings.language}</span>
+          <select className="header-menu__select" value={language} onChange={onChangeLanguage}>
+            {languageOptions.map((languageOption) => (
+              <option key={languageOption.code} value={languageOption.code}>
+                {languageOption.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          type="button"
+          className="header-menu__item"
+          onClick={() => {
+            setShowSettings((previous) => !previous);
+            closeMenu();
+          }}
+        >
+          {showSettings ? dictionary.header.close : dictionary.header.settings}
+        </button>
+
+        {session.token ? (
+          <button
+            type="button"
+            className="header-menu__item header-menu__item--primary"
+            onClick={() => {
+              setActivePage(currentPage === "home" ? getDefaultPageForRole(session.role) : "home");
+              closeMenu();
+            }}
+          >
+            {currentPage === "home" ? dictionary.header.dashboard : dictionary.header.home}
+          </button>
+        ) : null}
+
+        {session.token ? (
+          <button
+            type="button"
+            className="header-menu__item header-menu__item--danger"
+            onClick={() => {
+              handleLogout();
+              closeMenu();
+            }}
+          >
+            {dictionary.header.logout}
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="header-menu__item header-menu__item--primary"
+            onClick={() => {
+              openAuthModal("login");
+              closeMenu();
+            }}
+          >
+            {dictionary.header.loginSignup}
+          </button>
+        )}
+      </>
+    ),
+    [currentPage, dictionary.header.close, dictionary.header.dashboard, dictionary.header.home, dictionary.header.loginSignup, dictionary.header.logout, dictionary.header.settings, dictionary.header.user, dictionary.settings.language, handleLogout, session.name, session.role, session.token, showSettings]
+  );
 
   return (
     <div className="mesh-bg min-h-screen text-slate-900" ref={appRef}>
@@ -1430,64 +1694,116 @@ export default function App() {
         </Suspense>
       ) : null}
       <div className="app-shell">
-        <header className="sticky top-0 z-40 border-b border-slate-200/70 bg-white/80 backdrop-blur" data-reveal="instant">
-          <div className="mx-auto flex w-full max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-10">
-            <button type="button" className="text-left brand-mark" onClick={handleBrandClick}>
-              <span className="brand-mark__icon" aria-hidden="true">
-                <span className="brand-mark__icon-dot brand-mark__icon-dot--start" />
-                <span className="brand-mark__icon-path" />
-                <span className="brand-mark__icon-dot brand-mark__icon-dot--end" />
-              </span>
-              <span className="brand-mark__copy">
-                <span className="brand-mark__title">{dictionary.header.product}</span>
-                <span className="brand-mark__subtitle">{dictionary.header.subtitle}</span>
-              </span>
-            </button>
-            <div className="header-actions">
-              <button
-                type="button"
-                className="theme-toggle"
-                onClick={toggleDarkTheme}
-                aria-label={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
-                title={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
-              >
-                <span className="theme-toggle__icon" aria-hidden="true">
-                  {isDarkTheme ? (
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="4.2" />
-                      <path d="M12 2.5v2.2M12 19.3v2.2M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2.5 12h2.2M19.3 12h2.2M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" />
-                    </svg>
-                  ) : (
-                    <svg viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M20.2 14.1A8.7 8.7 0 0 1 9.9 3.8a.75.75 0 0 0-.95-.95A9.95 9.95 0 1 0 21.15 15a.75.75 0 0 0-.95-.9Z" />
-                    </svg>
-                  )}
+        <Header
+          currentPage={currentPage}
+          isDarkTheme={isDarkTheme}
+          language={preferences.language}
+          languageOptions={translationLanguageOptions}
+          onBookRide={() => openAuthModal("signup", "RIDER")}
+          onBrandClick={handleBrandClick}
+          onChangeLanguage={changeLanguage}
+          onNavigateSection={scrollToHomeSection}
+          onThemeToggle={toggleDarkTheme}
+          renderMenuContent={renderHeaderMenuContent}
+          session={session}
+          settingsOpen={showSettings}
+        />
+        <header
+          className={`hidden sticky top-0 z-40 backdrop-blur-md ${
+            isDarkTheme ? "border-b border-white/10 bg-black/40" : "border-b border-slate-200/60 bg-white/70"
+          }`}
+          data-reveal="instant"
+        >
+          <div className="header-bar mx-auto w-full max-w-7xl px-4 py-3 sm:px-6 lg:px-10">
+            <div className={`header-shell ${isDarkTheme ? "header-shell--dark" : ""}`}>
+              <button type="button" className={`text-left brand-mark ${isDarkTheme ? "brand-mark--dark" : ""}`} onClick={handleBrandClick}>
+                <span className="brand-mark__icon" aria-hidden="true">
+                  <span className="brand-mark__icon-dot brand-mark__icon-dot--start" />
+                  <span className="brand-mark__icon-path" />
+                  <span className="brand-mark__icon-dot brand-mark__icon-dot--end" />
+                </span>
+                <span className="brand-mark__copy">
+                  <span className="brand-mark__title">{dictionary.header.product}</span>
+                  <span className="brand-mark__subtitle">{dictionary.header.subtitle}</span>
                 </span>
               </button>
-
-              <div className="relative" ref={headerMenuRef}>
+              <nav className={`header-nav ${isDarkTheme ? "header-nav--dark" : ""}`} aria-label="Primary">
+                <button type="button" className="header-nav__link" onClick={() => scrollToHomeSection("header-home")}>
+                  Home
+                </button>
+                <button type="button" className="header-nav__link" onClick={() => scrollToHomeSection("header-rides")}>
+                  Rides
+                </button>
+                <button type="button" className="header-nav__link" onClick={() => scrollToHomeSection("header-pricing")}>
+                  Pricing
+                </button>
+              </nav>
+              <div className="header-actions">
                 <button
                   type="button"
-                  className="menu-trigger"
-                  onClick={() => setShowHeaderMenu((previous) => !previous)}
-                  aria-expanded={showHeaderMenu}
-                  aria-haspopup="menu"
-                  aria-label={showHeaderMenu ? "Close menu" : "Open menu"}
+                  className={`header-location ${isDarkTheme ? "header-location--dark" : ""}`}
+                  onClick={() => scrollToHomeSection("header-rides")}
                 >
-                  <span className="menu-trigger__line" />
-                  <span className="menu-trigger__line" />
-                  <span className="menu-trigger__line" />
+                  <span className="header-location__pin" aria-hidden="true">📍</span>
+                  <span>Lucknow, India</span>
                 </button>
+                <MotionButton
+                  type="button"
+                  className="header-cta"
+                  onClick={() => openAuthModal("signup", "RIDER")}
+                  whileHover={{ y: -1, scale: 1.03 }}
+                  whileTap={{ scale: 0.98 }}
+                  transition={{ type: "spring", stiffness: 320, damping: 22 }}
+                >
+                  Book Ride
+                </MotionButton>
+                <div className={`header-actions__rail ${isDarkTheme ? "header-actions__rail--dark" : ""}`}>
+                  <MotionButton
+                    type="button"
+                    className={`theme-toggle ${isDarkTheme ? "theme-toggle--dark" : ""}`}
+                    onClick={toggleDarkTheme}
+                    aria-label={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
+                    title={isDarkTheme ? "Turn off dark theme" : "Turn on dark theme"}
+                    animate={{ rotate: isDarkTheme ? 180 : 0, scale: isDarkTheme ? 1.04 : 1 }}
+                    transition={{ type: "spring", stiffness: 300, damping: 18 }}
+                  >
+                    <span className="theme-toggle__icon" aria-hidden="true">
+                      {isDarkTheme ? (
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                          <circle cx="12" cy="12" r="4.2" />
+                          <path d="M12 2.5v2.2M12 19.3v2.2M4.93 4.93l1.56 1.56M17.51 17.51l1.56 1.56M2.5 12h2.2M19.3 12h2.2M4.93 19.07l1.56-1.56M17.51 6.49l1.56-1.56" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" fill="currentColor">
+                          <path d="M20.2 14.1A8.7 8.7 0 0 1 9.9 3.8a.75.75 0 0 0-.95-.95A9.95 9.95 0 1 0 21.15 15a.75.75 0 0 0-.95-.9Z" />
+                        </svg>
+                      )}
+                    </span>
+                  </MotionButton>
 
-                <AnimatePresence>
-                  {showHeaderMenu ? (
-                    <MotionDiv
-                      initial={{ opacity: 0, y: -10, scale: 0.98 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-                      transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                      className="header-menu-panel"
+                  <div className="relative" ref={headerMenuRef}>
+                    <button
+                      type="button"
+                      className={`menu-trigger ${isDarkTheme ? "menu-trigger--dark" : ""}`}
+                      onClick={() => setShowHeaderMenu((previous) => !previous)}
+                      aria-expanded={showHeaderMenu}
+                      aria-haspopup="menu"
+                      aria-label={showHeaderMenu ? "Close menu" : "Open menu"}
                     >
+                      <span className="menu-trigger__line" />
+                      <span className="menu-trigger__line" />
+                      <span className="menu-trigger__line" />
+                    </button>
+
+                    <AnimatePresence>
+                      {showHeaderMenu ? (
+                        <MotionDiv
+                          initial={{ opacity: 0, y: -10, scale: 0.98 }}
+                          animate={{ opacity: 1, y: 0, scale: 1 }}
+                          exit={{ opacity: 0, y: -8, scale: 0.98 }}
+                          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                          className="header-menu-panel"
+                        >
                       {session.token ? (
                         <>
                           <div className="header-menu__identity">
@@ -1550,9 +1866,11 @@ export default function App() {
                           {dictionary.header.loginSignup}
                         </button>
                       )}
-                    </MotionDiv>
-                  ) : null}
-                </AnimatePresence>
+                        </MotionDiv>
+                      ) : null}
+                    </AnimatePresence>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -1561,6 +1879,7 @@ export default function App() {
         <AnimatePresence>
           {showSettings ? (
             <MotionAside
+              ref={settingsPanelRef}
               initial={{ opacity: 0, x: 20, scale: 0.98 }}
               animate={{ opacity: 1, x: 0, scale: 1 }}
               exit={{ opacity: 0, x: 18, scale: 0.98 }}
@@ -1575,9 +1894,9 @@ export default function App() {
               )}
               <div className="mt-3 space-y-4">
                 <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-bold text-slate-800">Map & Navigation</p>
+                  <p className="text-sm font-bold text-slate-800">{dictionary.settings.navigationSection}</p>
                   <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">Map style</span>
+                    <span className="mb-1 block font-semibold text-slate-700">{dictionary.settings.mapStyle}</span>
                     <select
                       value={advancedSettings.mapStyle}
                       onChange={(event) => updateAdvancedSetting("mapStyle", event.target.value)}
@@ -1589,7 +1908,7 @@ export default function App() {
                     </select>
                   </label>
                   <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Avoid tolls</span>
+                    <span>{dictionary.settings.avoidTolls}</span>
                     <input
                       type="checkbox"
                       checked={advancedSettings.avoidTolls}
@@ -1597,7 +1916,7 @@ export default function App() {
                     />
                   </label>
                   <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Avoid highways</span>
+                    <span>{dictionary.settings.avoidHighways}</span>
                     <input
                       type="checkbox"
                       checked={advancedSettings.avoidHighways}
@@ -1607,9 +1926,9 @@ export default function App() {
                 </section>
 
                 <section className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                  <p className="text-sm font-bold text-slate-800">Ride Preferences</p>
+                  <p className="text-sm font-bold text-slate-800">{dictionary.settings.ridePreferences}</p>
                   <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">Preferred vehicle</span>
+                    <span className="mb-1 block font-semibold text-slate-700">{dictionary.settings.preferredVehicle}</span>
                     <select
                       value={advancedSettings.preferredVehicleType}
                       onChange={(event) => updateAdvancedSetting("preferredVehicleType", event.target.value)}
@@ -1622,7 +1941,7 @@ export default function App() {
                     </select>
                   </label>
                   <label className="mt-2 block text-sm">
-                    <span className="mb-1 block font-semibold text-slate-700">AC preference</span>
+                    <span className="mb-1 block font-semibold text-slate-700">{dictionary.settings.acPreference}</span>
                     <select
                       value={advancedSettings.acPreference}
                       onChange={(event) => updateAdvancedSetting("acPreference", event.target.value)}
@@ -1634,7 +1953,7 @@ export default function App() {
                     </select>
                   </label>
                   <label className="mt-2 flex items-center justify-between gap-3 text-sm text-slate-700">
-                    <span>Quiet ride</span>
+                    <span>{dictionary.settings.quietRide}</span>
                     <input
                       type="checkbox"
                       checked={advancedSettings.quietRide}
@@ -1714,7 +2033,7 @@ export default function App() {
                   <AnimatePresence mode="wait" initial={false}>
                     <MotionDiv key={authMode} className="auth-shell__content" {...AUTH_STATE_TRANSITION}>
                       <div className="auth-shell__header">
-                        <p className="auth-shell__eyebrow">{dictionary.header.product}</p>
+                        <p className="auth-shell__eyebrow auth-shell__eyebrow--brand">{dictionary.header.product}</p>
                         <h2 className="auth-shell__title">{authTitle}</h2>
                         <p className="auth-shell__subtitle">{authSubtitle}</p>
                       </div>

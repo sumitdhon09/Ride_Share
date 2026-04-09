@@ -37,8 +37,15 @@ public class Ride {
     private Long id;
 
     private String pickupLocation;
+    private Double pickupLat;
+    private Double pickupLon;
+
     private String dropLocation;
+    private Double dropLat;
+    private Double dropLon;
+
     private Double fare;
+    private String rideType;
 
     private Long driverId;
     private Long riderId;

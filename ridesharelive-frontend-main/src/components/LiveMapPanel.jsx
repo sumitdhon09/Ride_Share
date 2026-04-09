@@ -50,6 +50,32 @@ function toShortLabel(displayName) {
   return parts.slice(0, 2).join(", ");
 }
 
+function toPreciseLabel(data, fallbackLabel) {
+  const address = data?.address || {};
+  const primary =
+    address.road ||
+    address.pedestrian ||
+    address.footway ||
+    address.neighbourhood ||
+    address.suburb ||
+    address.village ||
+    address.town ||
+    address.city ||
+    fallbackLabel;
+  const secondary =
+    address.suburb ||
+    address.neighbourhood ||
+    address.city ||
+    address.town ||
+    address.state_district ||
+    address.state;
+  return [primary, secondary].filter(Boolean).slice(0, 2).join(", ") || fallbackLabel || "India";
+}
+
+function formatCoords(lat, lon) {
+  return `${lat.toFixed(5)}, ${lon.toFixed(5)}`;
+}
+
 function toPhotonLabel(feature) {
   const properties = feature?.properties || {};
   const chunks = [properties.name, properties.city, properties.state, properties.country]
@@ -79,7 +105,6 @@ export default function LiveMapPanel({
     searchPlaceholder: "Search or type pickup location",
     useMyLocation: "Use My Location",
     mapView: "Map",
-    recenter: "Recenter",
     streetView: "Street View",
     locateFailed: "Location access failed.",
     searchFailed: "Unable to search this location.",
@@ -95,7 +120,7 @@ export default function LiveMapPanel({
     () => clampToIndia({ lat: defaultLat, lon: defaultLon }),
     [defaultLat, defaultLon]
   );
-  const normalizedDefaultZoom = useMemo(() => clamp(defaultZoom, 5, 14), [defaultZoom]);
+  const normalizedDefaultZoom = useMemo(() => clamp(defaultZoom, 5, 18), [defaultZoom]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [center, setCenter] = useState(defaultIndiaCenter);
@@ -105,6 +130,7 @@ export default function LiveMapPanel({
   const [loading, setLoading] = useState(false);
   const [viewMode, setViewMode] = useState("map");
   const [streetViewPoint, setStreetViewPoint] = useState(defaultIndiaCenter);
+  const [coordinateLabel, setCoordinateLabel] = useState(formatCoords(defaultIndiaCenter.lat, defaultIndiaCenter.lon));
 
   const mapIframeSrc = useMemo(() => {
     const [minLon, minLat, maxLon, maxLat] = getBbox(center.lat, center.lon, zoom);
@@ -173,8 +199,9 @@ export default function LiveMapPanel({
       const bounded = clampToIndia({ lat, lon });
       setCenter(bounded);
       setStreetViewPoint(bounded);
-      setLocationLabel(resolvedLabel || `${bounded.lat.toFixed(3)}, ${bounded.lon.toFixed(3)}`);
-      setZoom(12);
+      setLocationLabel(resolvedLabel || formatCoords(bounded.lat, bounded.lon));
+      setCoordinateLabel(formatCoords(bounded.lat, bounded.lon));
+      setZoom(16);
       setViewMode("map");
     } catch {
       setError(copy.searchFailed);
@@ -195,26 +222,32 @@ export default function LiveMapPanel({
       async (position) => {
         const lat = position.coords.latitude;
         const lon = position.coords.longitude;
+        const bounded = clampToIndia({ lat, lon });
+        const accuracy = Number(position.coords.accuracy);
+        const resolvedZoom =
+          Number.isFinite(accuracy) && accuracy <= 20 ? 18 : Number.isFinite(accuracy) && accuracy <= 50 ? 17 : 16;
         if (!isInIndia(lat, lon)) {
           setLoading(false);
           setError(copy.indiaOnly);
           setCenter(defaultIndiaCenter);
           setZoom(normalizedDefaultZoom);
           setLocationLabel(defaultLocationLabel);
+          setCoordinateLabel(formatCoords(defaultIndiaCenter.lat, defaultIndiaCenter.lon));
           return;
         }
 
-        setCenter(clampToIndia({ lat, lon }));
-        setStreetViewPoint(clampToIndia({ lat, lon }));
-        setZoom(13);
+        setCenter(bounded);
+        setStreetViewPoint(bounded);
+        setCoordinateLabel(formatCoords(bounded.lat, bounded.lon));
+        setZoom(resolvedZoom);
         setViewMode("map");
 
         try {
           const response = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16`
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`
           );
           const data = await response.json();
-          setLocationLabel(toShortLabel(data?.display_name) || copy.yourLocation);
+          setLocationLabel(toPreciseLabel(data, copy.yourLocation));
         } catch {
           setLocationLabel(copy.yourLocation);
         } finally {
@@ -244,11 +277,12 @@ export default function LiveMapPanel({
     setStreetViewPoint(defaultIndiaCenter);
     setZoom(normalizedDefaultZoom);
     setLocationLabel(defaultLocationLabel);
+    setCoordinateLabel(formatCoords(defaultIndiaCenter.lat, defaultIndiaCenter.lon));
     setViewMode("map");
   };
 
-  const zoomIn = () => setZoom((previous) => clamp(previous + 1, 5, 14));
-  const zoomOut = () => setZoom((previous) => clamp(previous - 1, 5, 14));
+  const zoomIn = () => setZoom((previous) => clamp(previous + 1, 5, 18));
+  const zoomOut = () => setZoom((previous) => clamp(previous - 1, 5, 18));
   const handleStreetView = () => {
     setError("");
     setStreetViewPoint(center);
@@ -259,7 +293,12 @@ export default function LiveMapPanel({
   return (
     <section className={`glass-panel card-rise p-4 sm:p-6 ${className}`}>
       <div className="flex items-center justify-between gap-3">
-        <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
+        <div>
+          <h3 className="text-2xl font-bold text-slate-900">{title}</h3>
+          <p className="mt-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">
+            Exact point: {coordinateLabel}
+          </p>
+        </div>
         <p className="text-sm font-semibold text-slate-600">{locationLabel}</p>
       </div>
 
@@ -286,9 +325,6 @@ export default function LiveMapPanel({
           </button>
           <button type="button" className="btn-secondary !rounded-xl !px-4 !py-3" onClick={handleStreetView}>
             {copy.streetView}
-          </button>
-          <button type="button" className="btn-secondary !rounded-xl !px-4 !py-3" onClick={handleRecenter} disabled={loading}>
-            {copy.recenter}
           </button>
         </div>
       </div>

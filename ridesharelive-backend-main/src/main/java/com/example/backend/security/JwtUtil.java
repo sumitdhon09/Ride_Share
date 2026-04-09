@@ -8,6 +8,8 @@ import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
@@ -18,6 +20,8 @@ import javax.crypto.SecretKey;
 
 @Component
 public class JwtUtil {
+    private static final Logger LOGGER = LoggerFactory.getLogger(JwtUtil.class);
+    private static final String DEV_FALLBACK_SECRET = "rideshare-dev-jwt-secret-change-me-2026";
 
     @Value("${app.jwt.secret:}")
     private String secret;
@@ -33,7 +37,8 @@ public class JwtUtil {
     @PostConstruct
     public void init() {
         if (secret == null || secret.isBlank()) {
-            throw new IllegalStateException("APP_JWT_SECRET must be set before starting the backend.");
+            secret = DEV_FALLBACK_SECRET;
+            LOGGER.warn("APP_JWT_SECRET was not set. Using local development fallback secret.");
         }
         if (secret.length() < 32) {
             throw new IllegalStateException("APP_JWT_SECRET must be at least 32 characters long.");

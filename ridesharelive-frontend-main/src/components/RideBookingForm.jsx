@@ -607,25 +607,43 @@ export default function RideBookingForm({
       return;
     }
 
+    const sanitizedPickup = pickup.trim();
+    const sanitizedDrop = drop.trim();
+
+    if (sanitizedPickup === sanitizedDrop) {
+        setError("Pickup and drop locations cannot be the same.");
+        return;
+    }
+
     if (isEconomyDistanceRestricted && rideTypeId === "economy") {
       setError("Economy is available only up to 80 km. Please choose another ride type.");
       return;
     }
 
-    if (!fareEstimate) {
+    if (!fareEstimate || !distanceKm) {
       setError("Unable to calculate real fare. Use valid pickup and destination.");
       return;
     }
 
     setLoading(true);
     try {
-      const sanitizedPickup = pickup.trim();
-      const sanitizedDrop = drop.trim();
+      const controller = new AbortController();
+      const pickupCoord = sanitizedPickup === LIVE_PICKUP_LABEL ? liveLocation : await geocodePlace(sanitizedPickup, controller.signal);
+      const dropCoord = await geocodePlace(sanitizedDrop, controller.signal);
+
+      if (!pickupCoord || !dropCoord) {
+          throw new Error("Unable to resolve coordinates for the selected locations.");
+      }
 
       const bookingPayload = {
         pickupLocation: sanitizedPickup,
+        pickupLat: pickupCoord.lat,
+        pickupLon: pickupCoord.lon,
         dropLocation: sanitizedDrop,
+        dropLat: dropCoord.lat,
+        dropLon: dropCoord.lon,
         fare: fareEstimate,
+        rideType: effectiveRideTypeId.toUpperCase(),
         paymentMode,
         preferredDriverId: selectedDriver?.id || null,
         preferredDriverName: selectedDriver?.name || "",

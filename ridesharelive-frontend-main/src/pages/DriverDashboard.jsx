@@ -686,7 +686,7 @@ export default function DriverDashboard() {
     <section className="dashboard-view space-y-6 fade-up">
       <LiveUpdateToast toast={liveToast} />
 
-      <div className="glass-panel card-rise map-motion-panel p-6 sm:p-8" data-reveal>
+      <div className="glass-panel card-rise map-motion-panel dashboard-hero p-6 sm:p-8" data-reveal>
         <div className="grid gap-6 lg:grid-cols-[1.35fr,0.95fr]">
           <div>
             <div className="flex flex-wrap items-center gap-3">
@@ -858,7 +858,7 @@ export default function DriverDashboard() {
       <PredictiveInsightsPanel insights={predictiveInsights} loading={loading} />
 
       <section className="grid gap-6 lg:grid-cols-2" data-reveal>
-        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
+        <article className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Availability controls</h2>
           <p className="mt-2 text-sm text-slate-600">Choose your work mode and optionally auto-assign open requests.</p>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
@@ -894,7 +894,7 @@ export default function DriverDashboard() {
           </p>
         </article>
 
-        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
+        <article className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" data-reveal>
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Earnings snapshot</h2>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <div className="rounded-2xl border border-slate-200 bg-white/80 p-4">
@@ -961,7 +961,7 @@ export default function DriverDashboard() {
         />
       </div>
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={demandSectionRef} data-reveal>
+      <section className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" ref={demandSectionRef} data-reveal>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Active demand</h2>

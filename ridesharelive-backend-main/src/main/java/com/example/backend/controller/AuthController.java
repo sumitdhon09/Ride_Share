@@ -26,6 +26,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import jakarta.validation.Valid;
+
 @RestController
 @RequestMapping("/auth")
 @Tag(name = "Authentication", description = "Signup, login, refresh and logout endpoints")
@@ -43,14 +45,17 @@ public class AuthController {
     @Autowired
     private SignupOtpService signupOtpService;
 
+    // Admin restricted email
+    private static final String ADMIN_EMAIL = "admin@rideshare.com";
+
     @PostMapping("/signup/request-otp")
     @Operation(summary = "Generate and send a signup OTP")
     @ApiResponse(responseCode = "200", description = "OTP generated")
-    public ResponseEntity<?> requestSignupOtp(@RequestBody AuthSignupOtpRequest request) {
+    public ResponseEntity<?> requestSignupOtp(@Valid @RequestBody AuthSignupOtpRequest request) {
         try {
             SignupOtpService.IssueResult result = signupOtpService.issueOtp(
-                    request == null ? null : request.getName(),
-                    request == null ? null : request.getEmail()
+                    request.getName(),
+                    request.getEmail()
             );
             if (!result.accepted()) {
                 if (result.rateLimited()) {
@@ -84,12 +89,10 @@ public class AuthController {
     @PostMapping("/signup")
     @Operation(summary = "Create or update an account")
     @ApiResponse(responseCode = "200", description = "Account created")
-    public ResponseEntity<?> register(@RequestBody AuthSignupRequest request) {
-        if (request == null || request.getEmail() == null || request.getPassword() == null || request.getName() == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "name, email and password are required."));
-        }
-        if (request.getOtp() == null || request.getOtp().isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "otp is required."));
+    public ResponseEntity<?> register(@Valid @RequestBody AuthSignupRequest request) {
+        // Restricted admin check
+        if ("ADMIN".equalsIgnoreCase(request.getRole()) && !ADMIN_EMAIL.equalsIgnoreCase(request.getEmail())) {
+            return ResponseEntity.status(403).body(Map.of("message", "Only authorized emails can sign up as ADMIN."));
         }
 
         SignupOtpService.VerificationResult verificationResult =
@@ -104,10 +107,13 @@ public class AuthController {
                 .phoneNumber(request.getPhoneNumber())
                 .password(request.getPassword())
                 .role(request.getRole())
+                .licenseNumber(request.getLicenseNumber())
+                .vehicleNumber(request.getVehicleNumber())
+                .vehicleModel(request.getVehicleModel())
                 .build();
         try {
-            userService.registerUser(user);
-            return ResponseEntity.ok(Map.of("message", "Account created/updated successfully."));
+            userService.registerUser(user, request.getConfirmPassword());
+            return ResponseEntity.ok(Map.of("message", "Account created successfully."));
         } catch (IllegalArgumentException validationError) {
             return ResponseEntity.badRequest().body(Map.of("message", validationError.getMessage()));
         }
@@ -117,14 +123,15 @@ public class AuthController {
     @Operation(summary = "Login with email/password and issue JWT access + refresh tokens")
     @ApiResponse(responseCode = "200", description = "Login successful")
     @ApiResponse(responseCode = "401", description = "Invalid credentials")
-    public ResponseEntity<?> login(@RequestBody AuthLoginRequest request) {
-        if (request == null || request.getEmail() == null || request.getPassword() == null) {
-            return ResponseEntity.badRequest().body(Map.of("message", "email and password are required."));
-        }
-
+    public ResponseEntity<?> login(@Valid @RequestBody AuthLoginRequest request) {
         User user = userService.findByEmail(request.getEmail()).orElse(null);
         if (user == null) {
             return ResponseEntity.status(401).body(Map.of("message", "Account not found. Please sign up first."));
+        }
+
+        // Strict role validation during login
+        if (!user.getRole().equalsIgnoreCase(request.getRole())) {
+             return ResponseEntity.status(401).body(Map.of("message", "Invalid role for this account."));
         }
 
         boolean valid = userService.passwordMatches(request.getPassword(), user.getPassword());
@@ -132,7 +139,7 @@ public class AuthController {
             return ResponseEntity.status(401).body(Map.of("message", "Incorrect password."));
         }
 
-        String effectiveRole = resolveLoginRole(request.getRole(), user.getRole());
+        String effectiveRole = user.getRole();
         String accessToken = jwtUtil.generateAccessToken(
                 user.getEmail(),
                 jwtUtil.buildAuthClaims(user.getId(), effectiveRole)

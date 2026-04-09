@@ -104,6 +104,7 @@ export default function RiderDashboard() {
   const driversSectionRef = useRef(null);
   const bookingSectionRef = useRef(null);
   const historySectionRef = useRef(null);
+  const profileSectionRef = useRef(null);
   const toastTimerRef = useRef(null);
   const pulseTimerRef = useRef(null);
   const hasLiveFeedInitializedRef = useRef(false);
@@ -367,75 +368,28 @@ export default function RiderDashboard() {
     <section className="dashboard-view space-y-6 fade-up">
       <LiveUpdateToast toast={liveToast} />
 
-      <div className="glass-panel card-rise p-6 sm:p-8" data-reveal>
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Rider dashboard</p>
-          <span className={`live-badge ${pulseLiveBadge ? "pulse-once" : ""}`}>Live updates</span>
+      {loading ? (
+        <div className="glass-panel p-6 text-sm text-slate-600" data-reveal>
+          Loading dashboard...
         </div>
-        <h1 className="mt-2 text-3xl font-bold text-slate-900">Hello, {riderName}</h1>
-        <p className="mt-2 text-slate-600">Book quickly, monitor progress, and keep track of your trips.</p>
-        <div className="mt-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Quick actions</p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={fetchRides}>
-              Refresh rides
-            </button>
-            <button
-              type="button"
-              className="btn-secondary !px-3 !py-2 !text-xs"
-              onClick={() => scrollToSection(mapSectionRef)}
-            >
-              Live map
-            </button>
-            <button
-              type="button"
-              className="btn-secondary !px-3 !py-2 !text-xs"
-              onClick={() => scrollToSection(driversSectionRef)}
-            >
-              Nearby drivers
-            </button>
-            <button
-              type="button"
-              className="btn-secondary !px-3 !py-2 !text-xs"
-              onClick={() => scrollToSection(bookingSectionRef)}
-            >
-              {currentRide ? "Current ride" : "Book ride"}
-            </button>
-            <button
-              type="button"
-              className="btn-secondary !px-3 !py-2 !text-xs"
-              onClick={() => scrollToSection(historySectionRef)}
-            >
-              Ride history
-            </button>
-          </div>
+      ) : (
+        <div ref={bookingSectionRef} data-reveal>
+          {currentRide ? (
+            <RideStatus ride={currentRide} onComplete={fetchRides} />
+          ) : (
+            <RideBookingForm
+              onBook={() => {
+                setSelectedDriverId("");
+                setBookingPreset(null);
+                fetchRides();
+              }}
+              selectedDriver={selectedDriver}
+              quickRoutePreset={bookingPreset}
+              onAutoAssign={() => setSelectedDriverId("")}
+            />
+          )}
         </div>
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed rides</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              <CountUpNumber value={stats.completed} className="tabular-nums" />
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Active rides</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              <CountUpNumber value={stats.active} className="tabular-nums" />
-            </p>
-          </div>
-          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total spent</p>
-            <p className="mt-1 text-2xl font-bold text-slate-900">
-              INR{" "}
-              <CountUpNumber
-                value={stats.spent}
-                className="tabular-nums"
-                formatter={(number) => formatInr(Math.round(number))}
-              />
-            </p>
-          </div>
-        </div>
-      </div>
+      )}
 
       {error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-600">{error}</div>
@@ -444,7 +398,16 @@ export default function RiderDashboard() {
         <div className="rounded-2xl border border-cyan-200 bg-cyan-50 px-4 py-3 text-sm font-semibold text-cyan-700">{infoNotice}</div>
       )}
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
+      <div ref={mapSectionRef} data-reveal>
+        <LiveMapPanel
+          title="Live map"
+          defaultCenter={{ lat: 21.774, lon: 78.257 }}
+          defaultZoom={6}
+          defaultLocationLabel="Multai, India"
+        />
+      </div>
+
+      <section className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" data-reveal>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Pickup insight</p>
@@ -478,123 +441,53 @@ export default function RiderDashboard() {
         </div>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2" data-reveal>
-        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
-          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Saved places & quick rebook</h2>
-          <p className="mt-2 text-sm text-slate-600">Save frequent routes and load them into booking with one tap.</p>
-
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <label className="text-sm font-semibold text-slate-700">
-              Home
-              <input
-                type="text"
-                value={homeDraft}
-                onChange={(event) => setHomeDraft(event.target.value)}
-                placeholder="Add home location"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-              />
-            </label>
-            <label className="text-sm font-semibold text-slate-700">
-              Work
-              <input
-                type="text"
-                value={workDraft}
-                onChange={(event) => setWorkDraft(event.target.value)}
-                placeholder="Add work location"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-              />
-            </label>
+      <div className="glass-panel card-rise dashboard-hero p-6 sm:p-8" data-reveal>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">Rider dashboard</p>
+              <span className={`live-badge ${pulseLiveBadge ? "pulse-once" : ""}`}>Live updates</span>
+            </div>
+            <h1 className="mt-2 text-3xl font-bold text-slate-900">Hello, {riderName}</h1>
+            <p className="mt-2 text-slate-600">Booking stays at the top, while trip controls and profile details sit lower on the page.</p>
           </div>
-
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={savePlaces}>
-              Save places
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={fetchRides}>
+              Refresh rides
             </button>
-            {savedPlaces.home && savedPlaces.work && (
-              <>
-                <button
-                  type="button"
-                  className="btn-secondary !px-3 !py-2 !text-xs"
-                  onClick={() => applyBookingPreset(savedPlaces.home, savedPlaces.work, "Home to Work")}
-                >
-                  Home to Work
-                </button>
-                <button
-                  type="button"
-                  className="btn-secondary !px-3 !py-2 !text-xs"
-                  onClick={() => applyBookingPreset(savedPlaces.work, savedPlaces.home, "Work to Home")}
-                >
-                  Work to Home
-                </button>
-              </>
-            )}
+            <button
+              type="button"
+              className="btn-secondary !px-3 !py-2 !text-xs"
+              onClick={() => scrollToSection(mapSectionRef)}
+            >
+              Live map
+            </button>
+            <button
+              type="button"
+              className="btn-secondary !px-3 !py-2 !text-xs"
+              onClick={() => scrollToSection(driversSectionRef)}
+            >
+              Nearby drivers
+            </button>
+            <button
+              type="button"
+              className="btn-secondary !px-3 !py-2 !text-xs"
+              onClick={() => scrollToSection(historySectionRef)}
+            >
+              Ride history
+            </button>
+            <button
+              type="button"
+              className="btn-secondary !px-3 !py-2 !text-xs"
+              onClick={() => scrollToSection(profileSectionRef)}
+            >
+              Profile
+            </button>
           </div>
-
-          {recentCompletedRoutes.length > 0 && (
-            <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">One-tap rebook</p>
-              <div className="mt-2 space-y-2">
-                {recentCompletedRoutes.map((route) => (
-                  <div key={route.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                    <p className="font-semibold text-slate-700">
-                      {route.pickup} to {route.drop}
-                    </p>
-                    <button
-                      type="button"
-                      className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-100"
-                      onClick={() => applyBookingPreset(route.pickup, route.drop, "Recent ride")}
-                    >
-                      Rebook
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </article>
-
-        <article className="glass-panel map-motion-panel p-6 sm:p-8" data-reveal>
-          <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Safety center</h2>
-          <p className="mt-2 text-sm text-slate-600">Keep one trusted contact ready and share live trip summary quickly.</p>
-          <div className="mt-4 rounded-2xl border border-slate-200 bg-white/80 p-4">
-            <label className="text-sm font-semibold text-slate-700">
-              Trusted contact
-              <input
-                type="text"
-                value={trustedContact}
-                onChange={(event) => setTrustedContact(event.target.value)}
-                placeholder="Phone or email"
-                className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
-              />
-            </label>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={saveTrustedContact}>
-                Save trusted contact
-              </button>
-              <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={shareTripDetails}>
-                Copy trip summary
-              </button>
-              <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={callEmergency}>
-                Emergency SOS
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">
-              Emergency number used: 112. Trip summary includes pickup, drop, status, and fare.
-            </p>
-          </div>
-        </article>
-      </section>
-
-      <div ref={mapSectionRef} data-reveal>
-        <LiveMapPanel
-          title="Live map"
-          defaultCenter={{ lat: 21.774, lon: 78.257 }}
-          defaultZoom={6}
-          defaultLocationLabel="Multai, India"
-        />
+        </div>
       </div>
 
-      <section className="glass-panel map-motion-panel p-6 sm:p-8" ref={driversSectionRef} data-reveal>
+      <section className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" ref={driversSectionRef} data-reveal>
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-bold text-slate-900 sm:text-2xl">Nearby drivers</h2>
           <div className="flex flex-wrap items-center gap-2">
@@ -658,36 +551,154 @@ export default function RiderDashboard() {
         </div>
       </section>
 
-      {loading ? (
-        <div className="glass-panel p-6 text-sm text-slate-600" data-reveal>
-          Loading dashboard...
+      <div className="space-y-6" data-reveal>
+        <div data-reveal>
+          <RideFeedbackPanel rides={rides} userRole="RIDER" title="Rider feedback" onRidePatched={patchRideFeedback} />
         </div>
-      ) : (
-        <div ref={bookingSectionRef} className="space-y-6" data-reveal>
-          <div data-reveal>
-            {currentRide ? (
-              <RideStatus ride={currentRide} onComplete={fetchRides} />
-            ) : (
-              <RideBookingForm
-                onBook={() => {
-                  setSelectedDriverId("");
-                  setBookingPreset(null);
-                  fetchRides();
-                }}
-                selectedDriver={selectedDriver}
-                quickRoutePreset={bookingPreset}
-                onAutoAssign={() => setSelectedDriverId("")}
+        <div ref={historySectionRef} data-reveal>
+          <RideHistory rides={rides} title="Your recent rides" emptyMessage="No rides yet. Book your first ride." autoRefresh={false} />
+        </div>
+      </div>
+
+      <section ref={profileSectionRef} className="glass-panel map-motion-panel dashboard-section p-6 sm:p-8" data-reveal>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Profile</p>
+            <h2 className="mt-2 text-2xl font-bold text-slate-900">Rider profile & preferences</h2>
+            <p className="mt-2 text-sm text-slate-600">Trip totals and personal shortcuts live here instead of the main dashboard header.</p>
+          </div>
+          <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
+            Active rides: <CountUpNumber value={stats.active} className="tabular-nums" />
+          </span>
+        </div>
+
+        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Completed rides</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              <CountUpNumber value={stats.completed} className="tabular-nums" />
+            </p>
+          </div>
+          <div className="rounded-2xl border border-slate-200 bg-white/80 p-4" data-reveal>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Total spent</p>
+            <p className="mt-1 text-2xl font-bold text-slate-900">
+              INR{" "}
+              <CountUpNumber
+                value={stats.spent}
+                className="tabular-nums"
+                formatter={(number) => formatInr(Math.round(number))}
               />
-            )}
-          </div>
-          <div data-reveal>
-            <RideFeedbackPanel rides={rides} userRole="RIDER" title="Rider feedback" onRidePatched={patchRideFeedback} />
-          </div>
-          <div ref={historySectionRef} data-reveal>
-            <RideHistory rides={rides} title="Your recent rides" emptyMessage="No rides yet. Book your first ride." autoRefresh={false} />
+            </p>
           </div>
         </div>
-      )}
+
+        <div className="mt-6 grid gap-6 lg:grid-cols-2">
+          <article className="rounded-2xl border border-slate-200 bg-white/80 p-6" data-reveal>
+            <h3 className="text-xl font-bold text-slate-900">Saved places & quick rebook</h3>
+            <p className="mt-2 text-sm text-slate-600">Save frequent routes and load them into booking with one tap.</p>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <label className="text-sm font-semibold text-slate-700">
+                Home
+                <input
+                  type="text"
+                  value={homeDraft}
+                  onChange={(event) => setHomeDraft(event.target.value)}
+                  placeholder="Add home location"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-700">
+                Work
+                <input
+                  type="text"
+                  value={workDraft}
+                  onChange={(event) => setWorkDraft(event.target.value)}
+                  placeholder="Add work location"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
+                />
+              </label>
+            </div>
+
+            <div className="mt-3 flex flex-wrap gap-2">
+              <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={savePlaces}>
+                Save places
+              </button>
+              {savedPlaces.home && savedPlaces.work && (
+                <>
+                  <button
+                    type="button"
+                    className="btn-secondary !px-3 !py-2 !text-xs"
+                    onClick={() => applyBookingPreset(savedPlaces.home, savedPlaces.work, "Home to Work")}
+                  >
+                    Home to Work
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-secondary !px-3 !py-2 !text-xs"
+                    onClick={() => applyBookingPreset(savedPlaces.work, savedPlaces.home, "Work to Home")}
+                  >
+                    Work to Home
+                  </button>
+                </>
+              )}
+            </div>
+
+            {recentCompletedRoutes.length > 0 && (
+              <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">One-tap rebook</p>
+                <div className="mt-2 space-y-2">
+                  {recentCompletedRoutes.map((route) => (
+                    <div key={route.id} className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                      <p className="font-semibold text-slate-700">
+                        {route.pickup} to {route.drop}
+                      </p>
+                      <button
+                        type="button"
+                        className="rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold text-cyan-700 hover:bg-cyan-100"
+                        onClick={() => applyBookingPreset(route.pickup, route.drop, "Recent ride")}
+                      >
+                        Rebook
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </article>
+
+          <article className="rounded-2xl border border-slate-200 bg-white/80 p-6" data-reveal>
+            <h3 className="text-xl font-bold text-slate-900">Safety center</h3>
+            <p className="mt-2 text-sm text-slate-600">Keep one trusted contact ready and share live trip summary quickly.</p>
+            <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+              <label className="text-sm font-semibold text-slate-700">
+                Trusted contact
+                <input
+                  type="text"
+                  value={trustedContact}
+                  onChange={(event) => setTrustedContact(event.target.value)}
+                  placeholder="Phone or email"
+                  className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-slate-900"
+                />
+              </label>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={saveTrustedContact}>
+                  Save trusted contact
+                </button>
+                <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={shareTripDetails}>
+                  Copy trip summary
+                </button>
+                <button type="button" className="btn-secondary !px-3 !py-2 !text-xs" onClick={callEmergency}>
+                  Emergency SOS
+                </button>
+              </div>
+              <p className="mt-3 text-xs text-slate-500">
+                Emergency number used: 112. Trip summary includes pickup, drop, status, and fare.
+              </p>
+            </div>
+          </article>
+        </div>
+      </section>
     </section>
   );
 }
